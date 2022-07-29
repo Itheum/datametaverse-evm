@@ -3,16 +3,17 @@ pragma solidity ^0.8.9;
 
 import "@erc725/smart-contracts/contracts/ERC725.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
-import "./NFMe.sol";
 import "./Common.sol";
+import "./IERC721SafeMint.sol";
 
 contract Identity is ERC725(msg.sender), IERC721Receiver {
 
     mapping(string => SharedStructs.Claim) public claims;
-    mapping(address => mapping(uint256 => bool)) public mintedNFTs;
+    mapping(address => bool) public ownerOfAnyNftInContract;
 
-    function mintNFMe(NFMe nfme) external {
-        bool success = nfme.safeMint{value: 0.1 ether}();
+    function mint(IERC721SafeMint _target) external payable {
+        // todo make use of ERC725X
+        bool success = _target.safeMint{value: msg.value}();
 
         assert(success);
     }
@@ -27,7 +28,8 @@ contract Identity is ERC725(msg.sender), IERC721Receiver {
         uint256 tokenId,
         bytes calldata data
     ) external override returns (bytes4) {
-        // todo store minted token
+        ownerOfAnyNftInContract[operator] = true;
+
         return IERC721Receiver.onERC721Received.selector;
     }
 

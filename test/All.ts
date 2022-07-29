@@ -46,8 +46,8 @@ describe("All", async function () {
     });
   });
 
-  describe("Verification", function() {
-    it("should verify the signature", async function () {
+  describe("NFMe Minting via Identiy including Claims", function() {
+    it("should be able to mint", async function () {
       const { claimVerifier, identity, nfme, alice, bob, carol, _ } = await loadFixture(setUpContracts);
 
       // Identity (Bob is owner) has to create the claim and send it over to Alice (owner of ClaimVerifier)
@@ -65,7 +65,10 @@ describe("All", async function () {
 
       await identity.connect(bob).addClaim({ ...claimData, signature: signedClaimDataHash });
 
-      await identity.connect(bob).mintNFMe(nfme.address);
+      await identity.connect(bob).mint(nfme.address, { value: ethers.utils.parseEther("0.1") });
+
+      expect(await nfme.balanceOf(identity.address)).to.equal(Number(1));
+      expect(await nfme.ownerOf(0)).to.equal(identity.address);
     });
   });
 });

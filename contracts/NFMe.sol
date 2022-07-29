@@ -7,8 +7,9 @@ import "@openzeppelin/contracts/utils/Counters.sol";
 import "./Common.sol";
 import "./Identity.sol";
 import "./ClaimVerifier.sol";
+import "./IERC721SafeMint.sol";
 
-contract NFMe is ERC721, Ownable {
+contract NFMe is ERC721, Ownable, IERC721SafeMint {
     uint16 constant MAX_SUPPLY = 10_000;
     uint256 constant MINT_PRICE = 0.1 ether;
 
