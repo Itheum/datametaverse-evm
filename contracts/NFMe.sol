@@ -39,7 +39,7 @@ contract NFMe is ERC721, Ownable {
             address to,
             bytes memory data,
             bytes memory signature
-        ) = Identity(msg.sender).claims("nfme_mint_allowed");
+        ) = Identity(payable(msg.sender)).claims("nfme_mint_allowed");
 
         require(from != address(0x0), "Identity has no 'nfme_mint_allowed' claim stored");
         require(from == ClaimVerifier(claimVerifier).owner(), "Not owner of ClaimVerifier signed the claim");

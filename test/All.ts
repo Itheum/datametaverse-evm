@@ -22,7 +22,7 @@ describe("All", async function () {
 
     await identity.deployed();
 
-    const fundingTx = await bob.sendTransaction({ value: ethers.utils.parseEther("1"), to: identity.address});
+    const fundingTx = await bob.sendTransaction({ value: ethers.utils.parseEther("1"), to: identity.address });
     await fundingTx.wait();
 
     console.log("Identity deployed to:", identity.address);
