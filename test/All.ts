@@ -58,7 +58,8 @@ describe("All", async function () {
         data: ethers.utils.formatBytes32String(""),
       };
 
-      const claimDataHash = await claimVerifier.getMessageHash(claimData.identifier, claimData.from, claimData.to, claimData.data);
+      //const claimDataHash = await claimVerifier.getMessageHash(claimData.identifier, claimData.from, claimData.to, claimData.data);
+      const claimDataHash = ethers.utils.solidityKeccak256(["string", "address", "address", "bytes"], [claimData.identifier, claimData.from, claimData.to, claimData.data]);
 
       // Alice (owner of ClaimVerifier) has to sign and return the claim
       const signedClaimDataHash = await alice.signMessage(ethers.utils.arrayify(claimDataHash));
