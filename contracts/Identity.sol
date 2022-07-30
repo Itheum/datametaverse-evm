@@ -12,7 +12,6 @@ contract Identity is ERC725(msg.sender), IERC721Receiver {
     mapping(address => bool) public ownerOfAnyNftInContract;
 
     function mint(IERC721SafeMint _target) external payable {
-        // todo make use of ERC725X
         bool success = _target.safeMint{value: msg.value}();
 
         assert(success);

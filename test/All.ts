@@ -66,10 +66,17 @@ describe("All", async function () {
 
       await identity.connect(bob).addClaim({ ...claimData, signature: signedClaimDataHash });
 
+      // mint with dedicated function
       await identity.connect(bob).mint(nfme.address, { value: ethers.utils.parseEther("0.1") });
 
-      expect(await nfme.balanceOf(identity.address)).to.equal(Number(1));
+      // mint via ERC725X
+      const mintFunctionSignatureHash = ethers.utils.keccak256(ethers.utils.toUtf8Bytes("safeMint()")).substring(0, 10);
+      await identity.connect(bob).execute(0, nfme.address, ethers.utils.parseEther("0.1"), mintFunctionSignatureHash);
+
+      expect(await nfme.balanceOf(identity.address)).to.equal(Number(2));
+
       expect(await nfme.ownerOf(0)).to.equal(identity.address);
+      expect(await nfme.ownerOf(1)).to.equal(identity.address);
     });
   });
 });
