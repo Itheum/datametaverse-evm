@@ -65,18 +65,39 @@ describe("All", async function () {
       const signedClaimDataHash = await alice.signMessage(ethers.utils.arrayify(claimDataHash));
 
       await identity.connect(bob).addClaim({ ...claimData, signature: signedClaimDataHash });
-
-      // mint with dedicated function
-      await identity.connect(bob).mint(nfme.address, { value: ethers.utils.parseEther("0.1") });
+      await identity.connect(bob).addAdditionalOwner(carol.address);
 
       // mint via ERC725X
       const mintFunctionSignatureHash = ethers.utils.keccak256(ethers.utils.toUtf8Bytes("safeMint()")).substring(0, 10);
       await identity.connect(bob).execute(0, nfme.address, ethers.utils.parseEther("0.1"), mintFunctionSignatureHash);
+      await identity.connect(carol).execute(0, nfme.address, ethers.utils.parseEther("0.1"), mintFunctionSignatureHash);
 
       expect(await nfme.balanceOf(identity.address)).to.equal(Number(2));
 
       expect(await nfme.ownerOf(0)).to.equal(identity.address);
       expect(await nfme.ownerOf(1)).to.equal(identity.address);
+    });
+  });
+
+  describe('Identity Factory', function () {
+    it('should deploy an identity contract for the user (gasless)', async function () {
+      const [ alice, bob, carol, _ ] = await ethers.getSigners();
+
+      // Identity Factory
+      const IdentityFactory = await ethers.getContractFactory("IdentityFactory");
+      const identityFactory = await IdentityFactory.deploy();
+
+      // Bob uses identity factory for deploying his identity contract
+      const deployViaFactoryTx = await identityFactory.connect(bob).deployIdentity();
+      const deployViaFactoryTxResult = await deployViaFactoryTx.wait();
+
+      // getting the address of the deployed identity contract for Bob
+      const identityContractAddress = deployViaFactoryTxResult.events[1].args[0];
+
+      const Identity = await ethers.getContractFactory("Identity");
+      const identity = await Identity.attach(identityContractAddress);
+
+      expect(await identity.owner()).to.equal(bob.address);
     });
   });
 });
