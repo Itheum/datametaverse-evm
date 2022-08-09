@@ -46,7 +46,7 @@ describe("All", async function () {
     });
   });
 
-  describe("NFMe Minting via Identiy including Claims", function() {
+  describe("NFMe Minting via Identity including Claims", function() {
     it("should be able to mint", async function () {
       const { claimVerifier, identity, nfme, alice, bob, carol, _ } = await loadFixture(setUpContracts);
 
@@ -98,6 +98,34 @@ describe("All", async function () {
       const identity = await Identity.attach(identityContractAddress);
 
       expect(await identity.owner()).to.equal(bob.address);
+    });
+  });
+
+  describe('Additional Owner Removal', function () {
+    it('should remove additional owner only on enough confirmations', async function () {
+      const { claimVerifier, identity, nfme, alice, bob, carol, _ } = await loadFixture(setUpContracts);
+
+      // Bob adds Alice and Alice adds Carol to the identity of Alice
+      await identity.connect(bob).addAdditionalOwner(alice.address);
+      await identity.connect(alice).addAdditionalOwner(carol.address);
+
+      expect(await identity.additionalOwnersCount()).to.equal(2);
+
+      // removing Carol should fail
+      await expect(identity.removeAdditionalOwner(carol.address)).to.revertedWith("At least 50% of owners need to confirm the removal");
+
+      // propose Carol for removal
+      await identity.connect(alice).proposeAdditionalOwnerRemoval(carol.address);
+
+      // removing Carol should still fail
+      await expect(identity.removeAdditionalOwner(carol.address)).to.revertedWith("At least 50% of owners need to confirm the removal");
+
+      // propose Carol for removal a second time
+      await identity.connect(bob).proposeAdditionalOwnerRemoval(carol.address);
+
+      await identity.removeAdditionalOwner(carol.address);
+
+      expect(await identity.additionalOwnersCount()).to.equal(1);
     });
   });
 });

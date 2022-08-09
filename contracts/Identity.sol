@@ -10,6 +10,8 @@ contract Identity is ERC725(tx.origin), IERC721Receiver {
     uint8 public MAX_ADDITIONAL_OWNERS = 9;
     uint8 public additionalOwnersCount = 0;
     mapping(address => bool) public additionalOwners;
+    mapping(address => uint8) public removeAdditionalOwnerConfirmationCount;
+    mapping(address => mapping(address => bool)) public removeAdditionalOwnerAcknowledgments;
 
     //todo research if we can use ERC735 here
     mapping(string => SharedStructs.Claim) public claims;
@@ -31,8 +33,24 @@ contract Identity is ERC725(tx.origin), IERC721Receiver {
         additionalOwners[_additionalOwner] = true;
     }
 
+    function proposeAdditionalOwnerRemoval(address _additionalOwner) public onlyOwner {
+        require(!removeAdditionalOwnerAcknowledgments[_additionalOwner][msg.sender],
+            "You can't propose the same additional owner removal twice");
+
+        removeAdditionalOwnerAcknowledgments[_additionalOwner][msg.sender] = true;
+
+        removeAdditionalOwnerConfirmationCount[_additionalOwner]++;
+    }
+
     function removeAdditionalOwner(address _additionalOwner) public onlyOwner {
+        require(removeAdditionalOwnerConfirmationCount[_additionalOwner] > additionalOwnersCount/2,
+            "At least 50% of owners need to confirm the removal");
+
         additionalOwners[_additionalOwner] = false;
+
+        additionalOwnersCount--;
+
+        removeAdditionalOwnerConfirmationCount[_additionalOwner] = 0;
     }
 
     function onERC721Received(
