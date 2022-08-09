@@ -112,13 +112,15 @@ describe("All", async function () {
       expect(await identity.additionalOwnersCount()).to.equal(2);
 
       // removing Carol should fail
-      await expect(identity.removeAdditionalOwner(carol.address)).to.revertedWith("At least 50% of owners need to confirm the removal");
+      await expect(identity.removeAdditionalOwner(carol.address)).to
+        .revertedWith("At least 50% of owners need to confirm the removal");
 
       // propose Carol for removal
       await identity.connect(alice).proposeAdditionalOwnerRemoval(carol.address);
 
       // removing Carol should still fail
-      await expect(identity.removeAdditionalOwner(carol.address)).to.revertedWith("At least 50% of owners need to confirm the removal");
+      await expect(identity.removeAdditionalOwner(carol.address)).to
+        .revertedWith("At least 50% of owners need to confirm the removal");
 
       // propose Carol for removal a second time
       await identity.connect(bob).proposeAdditionalOwnerRemoval(carol.address);
