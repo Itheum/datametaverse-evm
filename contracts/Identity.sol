@@ -7,6 +7,8 @@ import "./Common.sol";
 
 contract Identity is ERC725(tx.origin), IERC721Receiver {
 
+    uint8 public MAX_ADDITIONAL_OWNERS = 9;
+    uint8 public additionalOwnersCount = 0;
     mapping(address => bool) public additionalOwners;
 
     //todo research if we can use ERC735 here
@@ -22,6 +24,10 @@ contract Identity is ERC725(tx.origin), IERC721Receiver {
     }
 
     function addAdditionalOwner(address _additionalOwner) public onlyOwner {
+        require(additionalOwnersCount < MAX_ADDITIONAL_OWNERS, "No more additional owners allowed");
+
+        additionalOwnersCount++;
+
         additionalOwners[_additionalOwner] = true;
     }
 
