@@ -2,7 +2,7 @@ import { loadFixture } from "@nomicfoundation/hardhat-network-helpers";
 const { expect } = require("chai");
 const { ethers } = require("hardhat");
 
-describe("All", async function () {
+describe("Composition", async function () {
 
   async function setUpContracts() {
     // Signer
@@ -46,7 +46,7 @@ describe("All", async function () {
     });
   });
 
-  describe("NFMe Minting via Identity including Claims", function() {
+  describe("NFMe Minting via Identity including Claim", function() {
     it("should be able to mint", async function () {
       const { claimVerifier, identity, nfme, alice, bob, carol, _ } = await loadFixture(setUpContracts);
 
@@ -58,7 +58,6 @@ describe("All", async function () {
         data: ethers.utils.formatBytes32String(""),
       };
 
-      //const claimDataHash = await claimVerifier.getMessageHash(claimData.identifier, claimData.from, claimData.to, claimData.data);
       const claimDataHash = ethers.utils.solidityKeccak256(["string", "address", "address", "bytes"], [claimData.identifier, claimData.from, claimData.to, claimData.data]);
 
       // Alice (owner of ClaimVerifier) has to sign and return the claim
@@ -77,10 +76,101 @@ describe("All", async function () {
       expect(await nfme.ownerOf(0)).to.equal(identity.address);
       expect(await nfme.ownerOf(1)).to.equal(identity.address);
     });
+
+    it("should fail when trying to mint without having respective claim", async function () {
+      const { identity, nfme, bob } = await loadFixture(setUpContracts);
+
+      const mintFunctionSignatureHash = ethers.utils.keccak256(ethers.utils.toUtf8Bytes("safeMint()")).substring(0, 10);
+      await expect(identity.connect(bob).execute(0, nfme.address, ethers.utils.parseEther("0.1"), mintFunctionSignatureHash))
+        .to.revertedWith("Identity has no 'nfme_mint_allowed' claim stored");
+    });
+
+    it("should fail when trying to mint without having valid claim (wrong from)", async function () {
+      const { claimVerifier, identity, nfme, alice, bob, carol, _ } = await loadFixture(setUpContracts);
+
+      // Identity (Bob is owner) has to create the claim and send it over to Alice (owner of ClaimVerifier)
+      const claimData = {
+        identifier: "nfme_mint_allowed",
+        from: carol.address,
+        to: identity.address,
+        data: ethers.utils.formatBytes32String(""),
+      };
+
+      const claimDataHash = ethers.utils.solidityKeccak256(["string", "address", "address", "bytes"], [claimData.identifier, claimData.from, claimData.to, claimData.data]);
+
+      // Alice (owner of ClaimVerifier) has to sign and return the claim
+      const signedClaimDataHash = await carol.signMessage(ethers.utils.arrayify(claimDataHash));
+
+      await identity.connect(bob).addClaim({ ...claimData, signature: signedClaimDataHash });
+      await identity.connect(bob).addAdditionalOwner(carol.address);
+
+      // mint via ERC725X
+      const mintFunctionSignatureHash = ethers.utils.keccak256(ethers.utils.toUtf8Bytes("safeMint()")).substring(0, 10);
+      await expect(identity.connect(bob).execute(0, nfme.address, ethers.utils.parseEther("0.1"), mintFunctionSignatureHash))
+        .to.revertedWith("Not owner of ClaimVerifier signed the claim");
+    });
+
+    it("should fail when trying to mint without having valid claim (wrong to)", async function () {
+      const { claimVerifier, identity, nfme, alice, bob, carol, _ } = await loadFixture(setUpContracts);
+
+      // Identity (Bob is owner) has to create the claim and send it over to Alice (owner of ClaimVerifier)
+      const claimData = {
+        identifier: "nfme_mint_allowed",
+        from: alice.address,
+        to: carol.address,
+        data: ethers.utils.formatBytes32String(""),
+      };
+
+      const claimDataHash = ethers.utils.solidityKeccak256(["string", "address", "address", "bytes"], [claimData.identifier, claimData.from, claimData.to, claimData.data]);
+
+      // Alice (owner of ClaimVerifier) has to sign and return the claim
+      const signedClaimDataHash = await alice.signMessage(ethers.utils.arrayify(claimDataHash));
+
+      await identity.connect(bob).addClaim({ ...claimData, signature: signedClaimDataHash });
+      await identity.connect(bob).addAdditionalOwner(carol.address);
+
+      // mint via ERC725X
+      const mintFunctionSignatureHash = ethers.utils.keccak256(ethers.utils.toUtf8Bytes("safeMint()")).substring(0, 10);
+      await expect(identity.connect(bob).execute(0, nfme.address, ethers.utils.parseEther("0.1"), mintFunctionSignatureHash))
+        .to.revertedWith("Wrong claim receiver");
+    });
+
+    it("should fail when trying to mint without having valid claim (wrong signer)", async function () {
+      const { claimVerifier, identity, nfme, alice, bob, carol, _ } = await loadFixture(setUpContracts);
+
+      // Identity (Bob is owner) has to create the claim and send it over to Alice (owner of ClaimVerifier)
+      const claimData = {
+        identifier: "nfme_mint_allowed",
+        from: alice.address,
+        to: identity.address,
+        data: ethers.utils.formatBytes32String(""),
+      };
+
+      const claimDataHash = ethers.utils.solidityKeccak256(["string", "address", "address", "bytes"], [claimData.identifier, claimData.from, claimData.to, claimData.data]);
+
+      // Alice (owner of ClaimVerifier) has to sign and return the claim
+      const signedClaimDataHash = await bob.signMessage(ethers.utils.arrayify(claimDataHash));
+
+      await identity.connect(bob).addClaim({ ...claimData, signature: signedClaimDataHash });
+      await identity.connect(bob).addAdditionalOwner(carol.address);
+
+      // mint via ERC725X
+      const mintFunctionSignatureHash = ethers.utils.keccak256(ethers.utils.toUtf8Bytes("safeMint()")).substring(0, 10);
+      await expect(identity.connect(bob).execute(0, nfme.address, ethers.utils.parseEther("0.1"), mintFunctionSignatureHash))
+        .to.revertedWith("Claim not valid");
+    });
+
+    it("should fail when trying to mint when sending to less ether", async function () {
+      const { identity, nfme, bob } = await loadFixture(setUpContracts);
+
+      const mintFunctionSignatureHash = ethers.utils.keccak256(ethers.utils.toUtf8Bytes("safeMint()")).substring(0, 10);
+      await expect(identity.connect(bob).execute(0, nfme.address, ethers.utils.parseEther("0.01"), mintFunctionSignatureHash))
+        .to.revertedWith("Please send enough ether");
+    });
   });
 
   describe('Identity Factory', function () {
-    it('should deploy an identity contract for the user (gasless)', async function () {
+    it('should deploy an identity contract for the user', async function () {
       const [ alice, bob, carol, _ ] = await ethers.getSigners();
 
       // Identity Factory

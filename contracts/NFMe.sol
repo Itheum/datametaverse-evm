@@ -9,7 +9,7 @@ import "./Identity.sol";
 import "./ClaimVerifier.sol";
 
 contract NFMe is ERC721, Ownable {
-    uint16 constant MAX_SUPPLY = 10_000;
+    uint16 constant MAX_SUPPLY = 10;
     uint256 constant MINT_PRICE = 0.1 ether;
 
     address public claimVerifier;
