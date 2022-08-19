@@ -13,7 +13,7 @@ contract Identity is ERC725(tx.origin), IERC721Receiver {
     mapping(address => uint8) public removeAdditionalOwnerConfirmationCount;
     mapping(address => mapping(address => bool)) public removeAdditionalOwnerAcknowledgments;
 
-    //todo research if we can use ERC735 here
+    // claims can not be revoked at the moment
     mapping(string => SharedStructs.Claim) public claims;
     mapping(address => bool) public ownerOfAnyNftInContract;
 

@@ -6,6 +6,14 @@ import "./Common.sol";
 
 contract ClaimVerifier is Ownable {
 
+    string public claimIdentifier;
+    address public claimSigner;
+
+    constructor(string memory _claimIdentifier, address _claimSigner) {
+        claimIdentifier = _claimIdentifier;
+        claimSigner = _claimSigner;
+    }
+
     function getMessageHash(
         string memory _identifier,
         address _from,
