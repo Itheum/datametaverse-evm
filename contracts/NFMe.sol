@@ -11,7 +11,6 @@ contract NFMe is ERC721, ClaimVerifier {
     uint16 constant MAX_SUPPLY = 10;
     uint256 constant MINT_PRICE = 0.1 ether;
 
-
     using Counters for Counters.Counter;
 
     Counters.Counter private _tokenIdCounter;

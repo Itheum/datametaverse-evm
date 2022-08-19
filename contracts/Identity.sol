@@ -7,6 +7,9 @@ import "./Common.sol";
 
 contract Identity is ERC725(tx.origin), IERC721Receiver {
 
+    event ClaimAdded(string indexed indentifier, address indexed from);
+    event ClaimRemoved(string indexed indentifier);
+
     uint8 public MAX_ADDITIONAL_OWNERS = 9;
     uint8 public additionalOwnersCount = 0;
     mapping(address => bool) public additionalOwners;
@@ -23,6 +26,14 @@ contract Identity is ERC725(tx.origin), IERC721Receiver {
 
     function addClaim(SharedStructs.Claim memory claim) onlyOwner public {
         claims[claim.identifier] = claim;
+
+        emit ClaimAdded(claim.identifier, claim.from);
+    }
+
+    function removeClaim(string memory identifier) onlyOwner public {
+        delete claims[identifier];
+
+        emit ClaimRemoved(identifier);
     }
 
     function addAdditionalOwner(address _additionalOwner) public onlyOwner {
