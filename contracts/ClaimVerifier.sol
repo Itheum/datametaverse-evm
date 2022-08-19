@@ -19,9 +19,11 @@ contract ClaimVerifier is Ownable {
         string memory _identifier,
         address _from,
         address _to,
-        bytes memory _data
+        bytes memory _data,
+        uint64 _validFrom,
+        uint64 _validTo
     ) public pure returns (bytes32) {
-        return keccak256(abi.encodePacked(_identifier, _from, _to, _data));
+        return keccak256(abi.encodePacked(_identifier, _from, _to, _data, _validFrom, _validTo));
     }
 
     function getEthSignedMessageHash(bytes32 _messageHash) public pure returns (bytes32) {
@@ -35,7 +37,9 @@ contract ClaimVerifier is Ownable {
             claim.identifier,
             claim.from,
             claim.to,
-            claim.data
+            claim.data,
+            claim.validFrom,
+            claim.validTo
         );
 
         bytes32 ethSignedMessageHash = getEthSignedMessageHash(messageHash);
@@ -70,12 +74,24 @@ contract ClaimVerifier is Ownable {
         address from,
         address to,
         bytes memory data,
+        uint64 validFrom,
+        uint64 validTo,
         bytes memory signature
         ) = Identity(payable(msg.sender)).claims(claimIdentifier);
 
         require(from != address(0x0), "Required claim not available");
         require(from == claimSigner, "Wrong claim issuer");
+
         require(to == msg.sender, "Wrong claim receiver");
-        require(verifySignature(SharedStructs.Claim(identifier, from, to, data, signature)), "Claim signature not valid");
+
+        if (validFrom != 0) {
+            require(block.number >= validFrom, 'Claim not yet valid');
+        }
+
+        if (validTo != 0) {
+            require(block.number <= validTo, 'Claim not valid anymore');
+        }
+
+        require(verifySignature(SharedStructs.Claim(identifier, from, to, data, validFrom, validTo, signature)), "Claim signature not valid");
     }
 }

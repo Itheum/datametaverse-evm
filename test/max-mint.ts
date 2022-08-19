@@ -44,9 +44,11 @@ describe("Max Mint", async function () {
         from,
         to: identity.address,
         data: ethers.utils.formatBytes32String(""),
+        validFrom: 0,
+        validTo: 0,
       };
 
-      const claimDataHash = ethers.utils.solidityKeccak256(["string", "address", "address", "bytes"], [claimData.identifier, claimData.from, claimData.to, claimData.data]);
+      const claimDataHash = ethers.utils.solidityKeccak256(["string", "address", "address", "bytes", "uint64", "uint64"], [claimData.identifier, claimData.from, claimData.to, claimData.data, claimData.validFrom, claimData.validTo]);
 
       // Alice (owner of ClaimVerifier) has to sign and return the claim
       const signedClaimDataHash = await alice.signMessage(ethers.utils.arrayify(claimDataHash));

@@ -7,6 +7,8 @@ library SharedStructs {
         address from;
         address to;
         bytes data;
+        uint64 validFrom;
+        uint64 validTo;
         bytes signature;
     }
 }
