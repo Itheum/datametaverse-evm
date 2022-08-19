@@ -28,18 +28,7 @@ contract NFMe is ERC721, ClaimVerifier {
 
         require(tokenId < MAX_SUPPLY, "We are already minted out");
 
-        (
-            string memory identifier,
-            address from,
-            address to,
-            bytes memory data,
-            bytes memory signature
-        ) = Identity(payable(msg.sender)).claims("nfme_mint_allowed");
-
-        require(from != address(0x0), "Identity has no 'nfme_mint_allowed' claim stored");
-        require(from == claimSigner, "Not owner of ClaimVerifier signed the claim");
-        require(to == msg.sender, "Wrong claim receiver");
-        require(verify(SharedStructs.Claim(identifier, from, to, data, signature)), "Claim not valid");
+        _verifyClaim();
 
         _tokenIdCounter.increment();
         _safeMint(msg.sender, tokenId);

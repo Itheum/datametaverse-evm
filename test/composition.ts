@@ -79,7 +79,7 @@ describe("Composition", async function () {
 
       const mintFunctionSignatureHash = ethers.utils.keccak256(ethers.utils.toUtf8Bytes("safeMint()")).substring(0, 10);
       await expect(identity.connect(bob).execute(0, nfme.address, ethers.utils.parseEther("0.1"), mintFunctionSignatureHash))
-        .to.revertedWith("Identity has no 'nfme_mint_allowed' claim stored");
+        .to.revertedWith("Required claim not available");
     });
 
     it("should fail when trying to mint without having valid claim (wrong from)", async function () {
@@ -108,7 +108,7 @@ describe("Composition", async function () {
       // mint via ERC725X
       const mintFunctionSignatureHash = ethers.utils.keccak256(ethers.utils.toUtf8Bytes("safeMint()")).substring(0, 10);
       await expect(identity.connect(bob).execute(0, nfme.address, ethers.utils.parseEther("0.1"), mintFunctionSignatureHash))
-        .to.revertedWith("Not owner of ClaimVerifier signed the claim");
+        .to.revertedWith("Wrong claim issuer");
     });
 
     it("should fail when trying to mint without having valid claim (wrong to)", async function () {
@@ -166,7 +166,7 @@ describe("Composition", async function () {
       // mint via ERC725X
       const mintFunctionSignatureHash = ethers.utils.keccak256(ethers.utils.toUtf8Bytes("safeMint()")).substring(0, 10);
       await expect(identity.connect(bob).execute(0, nfme.address, ethers.utils.parseEther("0.1"), mintFunctionSignatureHash))
-        .to.revertedWith("Claim not valid");
+        .to.revertedWith("Claim signature not valid");
     });
 
     it("should fail when trying to mint when sending to less ether", async function () {

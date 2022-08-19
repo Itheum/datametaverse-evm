@@ -3,6 +3,7 @@ pragma solidity ^0.8.9;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "./Common.sol";
+import "./Identity.sol";
 
 contract ClaimVerifier is Ownable {
 
@@ -29,7 +30,7 @@ contract ClaimVerifier is Ownable {
         );
     }
 
-    function verify(SharedStructs.Claim memory claim) public view returns (bool) {
+    function verifySignature(SharedStructs.Claim memory claim) public view returns (bool) {
         bytes32 messageHash = getMessageHash(
             claim.identifier,
             claim.from,
@@ -61,5 +62,20 @@ contract ClaimVerifier is Ownable {
             v := byte(0, mload(add(sig, 96)))
         }
         return (r, s, v);
+    }
+
+    function _verifyClaim() internal {
+        (
+        string memory identifier,
+        address from,
+        address to,
+        bytes memory data,
+        bytes memory signature
+        ) = Identity(payable(msg.sender)).claims(claimIdentifier);
+
+        require(from != address(0x0), "Required claim not available");
+        require(from == claimSigner, "Wrong claim issuer");
+        require(to == msg.sender, "Wrong claim receiver");
+        require(verifySignature(SharedStructs.Claim(identifier, from, to, data, signature)), "Claim signature not valid");
     }
 }
