@@ -47,7 +47,39 @@ describe("Composition", async function () {
       const from = await nfme.claimSigner();
 
       // Identity (Bob is owner) has to create the claim and send it over to 'from'
-      // todo how to send to 'from'?
+      const claimData = {
+        identifier,
+        from,
+        to: identity.address,
+        data: ethers.utils.formatBytes32String(""),
+        validFrom: 0,
+        validTo: 0,
+      };
+
+      const claimDataHash = ethers.utils.solidityKeccak256(["string", "address", "address", "bytes", "uint64", "uint64"], [claimData.identifier, claimData.from, claimData.to, claimData.data, claimData.validFrom, claimData.validTo]);
+
+      // Alice (owner of ClaimVerifier) has to sign and return the claim
+      const signedClaimDataHash = await alice.signMessage(ethers.utils.arrayify(claimDataHash));
+
+      await identity.connect(bob).addClaim({ ...claimData, signature: signedClaimDataHash });
+
+      // mint via ERC725X
+      const mintFunctionSignatureHash = ethers.utils.keccak256(ethers.utils.toUtf8Bytes("safeMint()")).substring(0, 10);
+      await identity.connect(bob).execute(0, nfme.address, ethers.utils.parseEther("0.1"), mintFunctionSignatureHash);
+
+      expect(await nfme.balanceOf(identity.address)).to.equal(Number(1));
+
+      expect(await nfme.ownerOf(0)).to.equal(identity.address);
+    });
+
+    it("should be able to add another owner and also mint from it", async function () {
+      const { identity, nfme, alice, bob, carol, _ } = await loadFixture(setUpContracts);
+
+      // Bob needs to ask the target (NFT) contract which claim he needs and from whom it needs to be signed
+      const identifier = await nfme.claimIdentifier();
+      const from = await nfme.claimSigner();
+
+      // Identity (Bob is owner) has to create the claim and send it over to 'from'
       const claimData = {
         identifier,
         from,
@@ -184,6 +216,177 @@ describe("Composition", async function () {
       await expect(identity.connect(bob).execute(0, nfme.address, ethers.utils.parseEther("0.01"), mintFunctionSignatureHash))
         .to.revertedWith("Please send enough ether");
     });
+
+    it("should fail when trying to mint if validTo is in the 'past'", async function () {
+      const { identity, nfme, alice, bob, carol, _ } = await loadFixture(setUpContracts);
+
+      // Bob needs to ask the target (NFT) contract which claim he needs and from whom it needs to be signed
+      const identifier = await nfme.claimIdentifier();
+      const from = await nfme.claimSigner();
+
+      // Identity (Bob is owner) has to create the claim and send it over to 'from'
+      const claimData = {
+        identifier,
+        from,
+        to: identity.address,
+        data: ethers.utils.formatBytes32String(""),
+        validFrom: 0,
+        validTo: await ethers.provider.getBlockNumber() - 1,
+      };
+
+      const claimDataHash = ethers.utils.solidityKeccak256(["string", "address", "address", "bytes", "uint64", "uint64"], [claimData.identifier, claimData.from, claimData.to, claimData.data, claimData.validFrom, claimData.validTo]);
+
+      // Alice (owner of ClaimVerifier) has to sign and return the claim
+      const signedClaimDataHash = await alice.signMessage(ethers.utils.arrayify(claimDataHash));
+
+      await identity.connect(bob).addClaim({ ...claimData, signature: signedClaimDataHash });
+
+      // mint via ERC725X
+      const mintFunctionSignatureHash = ethers.utils.keccak256(ethers.utils.toUtf8Bytes("safeMint()")).substring(0, 10);
+      await expect(identity.connect(bob).execute(0, nfme.address, ethers.utils.parseEther("0.1"), mintFunctionSignatureHash))
+        .to.revertedWith("Claim not valid anymore");
+    });
+
+    it("should fail when trying to mint if validFrom is in the 'future'", async function () {
+      const { identity, nfme, alice, bob, carol, _ } = await loadFixture(setUpContracts);
+
+      // Bob needs to ask the target (NFT) contract which claim he needs and from whom it needs to be signed
+      const identifier = await nfme.claimIdentifier();
+      const from = await nfme.claimSigner();
+
+      // Identity (Bob is owner) has to create the claim and send it over to 'from'
+      const claimData = {
+        identifier,
+        from,
+        to: identity.address,
+        data: ethers.utils.formatBytes32String(""),
+        validFrom: await ethers.provider.getBlockNumber() + 5,
+        validTo: 0,
+      };
+
+      const claimDataHash = ethers.utils.solidityKeccak256(["string", "address", "address", "bytes", "uint64", "uint64"], [claimData.identifier, claimData.from, claimData.to, claimData.data, claimData.validFrom, claimData.validTo]);
+
+      // Alice (owner of ClaimVerifier) has to sign and return the claim
+      const signedClaimDataHash = await alice.signMessage(ethers.utils.arrayify(claimDataHash));
+
+      await identity.connect(bob).addClaim({ ...claimData, signature: signedClaimDataHash });
+
+      // mint via ERC725X
+      const mintFunctionSignatureHash = ethers.utils.keccak256(ethers.utils.toUtf8Bytes("safeMint()")).substring(0, 10);
+      await expect(identity.connect(bob).execute(0, nfme.address, ethers.utils.parseEther("0.1"), mintFunctionSignatureHash))
+        .to.revertedWith("Claim not yet valid");
+    });
+  });
+
+  describe("Various", function() {
+    it('should be able to add claims', async function () {
+      const { identity, nfme, alice, bob, carol, _ } = await loadFixture(setUpContracts);
+
+      expect(await identity.additionalOwnersCount()).to.equal(0);
+
+      await identity.connect(bob).addAdditionalOwner(carol.address);
+
+      expect(await identity.additionalOwnersCount()).to.equal(1);
+    });
+
+    it("should be able to add additional owner", async function () {
+      const {identity, nfme, alice, bob, carol, _} = await loadFixture(setUpContracts);
+
+      // Bob needs to ask the target (NFT) contract which claim he needs and from whom it needs to be signed
+      const identifier = await nfme.claimIdentifier();
+      const from = await nfme.claimSigner();
+
+      // Identity (Bob is owner) has to create the claim and send it over to 'from'
+      const claimData = {
+        identifier,
+        from,
+        to: identity.address,
+        data: ethers.utils.formatBytes32String(""),
+        validFrom: 0,
+        validTo: 0,
+      };
+
+      const claimDataHash = ethers.utils.solidityKeccak256(["string", "address", "address", "bytes", "uint64", "uint64"], [claimData.identifier, claimData.from, claimData.to, claimData.data, claimData.validFrom, claimData.validTo]);
+
+      // Alice (owner of ClaimVerifier) has to sign and return the claim
+      const signedClaimDataHash = await alice.signMessage(ethers.utils.arrayify(claimDataHash));
+
+      expect((await identity.claims(identifier)).from).to.equal(ethers.constants.AddressZero);
+
+      await identity.connect(bob).addClaim({...claimData, signature: signedClaimDataHash});
+
+      expect((await identity.claims(identifier)).from).to.equal(from);
+    });
+
+    it("should be able to remove claims", async function () {
+      const { identity, nfme, alice, bob, carol, _ } = await loadFixture(setUpContracts);
+
+      // Bob needs to ask the target (NFT) contract which claim he needs and from whom it needs to be signed
+      const identifier = await nfme.claimIdentifier();
+      const from = await nfme.claimSigner();
+
+      // Identity (Bob is owner) has to create the claim and send it over to 'from'
+      const claimData = {
+        identifier,
+        from,
+        to: identity.address,
+        data: ethers.utils.formatBytes32String(""),
+        validFrom: 0,
+        validTo: 0,
+      };
+
+      const claimDataHash = ethers.utils.solidityKeccak256(["string", "address", "address", "bytes", "uint64", "uint64"], [claimData.identifier, claimData.from, claimData.to, claimData.data, claimData.validFrom, claimData.validTo]);
+
+      // Alice (owner of ClaimVerifier) has to sign and return the claim
+      const signedClaimDataHash = await alice.signMessage(ethers.utils.arrayify(claimDataHash));
+
+      expect((await identity.claims(identifier)).from).to.equal(ethers.constants.AddressZero);
+
+      await identity.connect(bob).addClaim({ ...claimData, signature: signedClaimDataHash });
+
+      expect((await identity.claims(identifier)).from).to.equal(from);
+
+      await identity.connect(bob).removeClaim(identifier);
+
+      expect((await identity.claims(identifier)).from).to.equal(ethers.constants.AddressZero);
+    });
+  });
+
+  describe('Claim Events', function() {
+    it("should emit a ClaimAdded event", async function () {
+      const { identity, nfme, alice, bob, carol, _ } = await loadFixture(setUpContracts);
+
+      // Bob needs to ask the target (NFT) contract which claim he needs and from whom it needs to be signed
+      const identifier = await nfme.claimIdentifier();
+      const from = await nfme.claimSigner();
+
+      // Identity (Bob is owner) has to create the claim and send it over to 'from'
+      const claimData = {
+        identifier,
+        from,
+        to: identity.address,
+        data: ethers.utils.formatBytes32String(""),
+        validFrom: 0,
+        validTo: 0,
+      };
+
+      const claimDataHash = ethers.utils.solidityKeccak256(["string", "address", "address", "bytes", "uint64", "uint64"], [claimData.identifier, claimData.from, claimData.to, claimData.data, claimData.validFrom, claimData.validTo]);
+
+      // Alice (owner of ClaimVerifier) has to sign and return the claim
+      const signedClaimDataHash = await alice.signMessage(ethers.utils.arrayify(claimDataHash));
+
+      expect(await identity.connect(bob).addClaim({...claimData, signature: signedClaimDataHash}))
+        .to.emit(nfme, 'ClaimAdded').withArgs(identifier, from);
+    });
+
+    it("should emit a ClaimRemoved event", async function () {
+      const { identity, nfme, alice, bob, carol, _ } = await loadFixture(setUpContracts);
+
+      const identifier = "any_identifier";
+
+      expect(await identity.connect(bob).removeClaim(identifier))
+        .to.emit(nfme, 'ClaimRemoved').withArgs(identifier);
+    });
   });
 
   describe('Identity Factory', function () {
@@ -209,7 +412,7 @@ describe("Composition", async function () {
   });
 
   describe('Additional Owner Removal', function () {
-    it('should remove additional owner only on enough confirmations', async function () {
+    it('should fail to remove additional owner if not enough confirmations', async function () {
       const { identity, alice, bob, carol, _ } = await loadFixture(setUpContracts);
 
       // Bob adds Alice and Alice adds Carol to the identity of Alice
@@ -228,6 +431,18 @@ describe("Composition", async function () {
       // removing Carol should still fail
       await expect(identity.removeAdditionalOwner(carol.address)).to
         .revertedWith("At least 50% of owners need to confirm the removal");
+    });
+
+    it('should remove additional owner only on enough confirmations', async function () {
+      const { identity, alice, bob, carol, _ } = await loadFixture(setUpContracts);
+
+      // Bob adds Alice and Alice adds Carol to the identity of Alice
+      await identity.connect(bob).addAdditionalOwner(alice.address);
+      await identity.connect(alice).addAdditionalOwner(carol.address);
+
+      expect(await identity.additionalOwnersCount()).to.equal(2);
+      // propose Carol for removal
+      await identity.connect(alice).proposeAdditionalOwnerRemoval(carol.address);
 
       // propose Carol for removal a second time
       await identity.connect(bob).proposeAdditionalOwnerRemoval(carol.address);
