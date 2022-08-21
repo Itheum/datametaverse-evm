@@ -45,6 +45,7 @@ contract Identity is ERC725(tx.origin), IERC721Receiver {
     }
 
     function proposeAdditionalOwnerRemoval(address _additionalOwner) public onlyOwner {
+        require(additionalOwners[_additionalOwner], "Only additional owners can be proposed for removal");
         require(!removeAdditionalOwnerAcknowledgments[_additionalOwner][msg.sender],
             "You can't propose the same additional owner removal twice");
 
@@ -61,7 +62,7 @@ contract Identity is ERC725(tx.origin), IERC721Receiver {
 
         additionalOwnersCount--;
 
-        removeAdditionalOwnerConfirmationCount[_additionalOwner] = 0;
+        delete removeAdditionalOwnerConfirmationCount[_additionalOwner];
     }
 
     function onERC721Received(
