@@ -44,7 +44,7 @@ contract ClaimVerifier is Ownable {
 
         bytes32 ethSignedMessageHash = getEthSignedMessageHash(messageHash);
 
-        return recoverSigner(ethSignedMessageHash, claim.signature) == owner();
+        return recoverSigner(ethSignedMessageHash, claim.signature) == claimSigner;
     }
 
     function recoverSigner(bytes32 _ethSignedMessageHash, bytes memory _signature) public pure returns (address) {

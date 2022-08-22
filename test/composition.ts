@@ -43,8 +43,8 @@ describe("Composition", async function () {
       const { identity, nfme, alice, bob, carol, _ } = await loadFixture(setUpContracts);
 
       // Bob needs to ask the target (NFT) contract which claim he needs and from whom it needs to be signed
-      const identifier = await nfme.claimIdentifier();
-      const from = await nfme.claimSigner();
+      const identifier = await nfme.connect(bob).claimIdentifier();
+      const from = await nfme.connect(bob).claimSigner();
 
       // Identity (Bob is owner) has to create the claim and send it over to 'from'
       const claimData = {
@@ -56,11 +56,12 @@ describe("Composition", async function () {
         validTo: 0,
       };
 
+      // Alice (owner of ClaimVerifier) has to sign and return the claim
       const claimDataHash = ethers.utils.solidityKeccak256(["string", "address", "address", "bytes", "uint64", "uint64"], [claimData.identifier, claimData.from, claimData.to, claimData.data, claimData.validFrom, claimData.validTo]);
 
-      // Alice (owner of ClaimVerifier) has to sign and return the claim
       const signedClaimDataHash = await alice.signMessage(ethers.utils.arrayify(claimDataHash));
 
+      // Bob puts the claim data and the signature to his Identity contract
       await identity.connect(bob).addClaim({ ...claimData, signature: signedClaimDataHash });
 
       // mint via ERC725X
@@ -459,6 +460,50 @@ describe("Composition", async function () {
       await identity.connect(bob).addClaim({ ...claimData, signature: signedClaimDataHash });
 
       expect((await identity.claims(identifier)).from).to.equal(from);
+    });
+
+    it("should be able to overwrite claims", async function () {
+      const { identity, nfme, alice, bob, carol, _ } = await loadFixture(setUpContracts);
+
+      // Bob needs to ask the target (NFT) contract which claim he needs and from whom it needs to be signed
+      const identifier = await nfme.claimIdentifier();
+      const from = await nfme.claimSigner();
+
+      // Identity (Bob is owner) has to create the claim and send it over to 'from'
+      const claimData = {
+        identifier,
+        from,
+        to: identity.address,
+        data: ethers.utils.formatBytes32String(""),
+        validFrom: 0,
+        validTo: 0,
+      };
+
+      const claimDataHash = ethers.utils.solidityKeccak256(["string", "address", "address", "bytes", "uint64", "uint64"], [claimData.identifier, claimData.from, claimData.to, claimData.data, claimData.validFrom, claimData.validTo]);
+
+      // Alice (owner of ClaimVerifier) has to sign and return the claim
+      const signedClaimDataHash = await alice.signMessage(ethers.utils.arrayify(claimDataHash));
+
+      expect((await identity.claims(identifier)).from).to.equal(ethers.constants.AddressZero);
+
+      await identity.connect(bob).addClaim({ ...claimData, signature: signedClaimDataHash });
+
+      expect((await identity.claims(identifier)).from).to.equal(from);
+      expect((await identity.claims(identifier)).to).to.equal(claimData.to);
+
+      const arbitraryAddress = ethers.Wallet.createRandom().address;
+
+      claimData.to = arbitraryAddress;
+
+      const claimDataHashOverride = ethers.utils.solidityKeccak256(["string", "address", "address", "bytes", "uint64", "uint64"], [claimData.identifier, claimData.from, claimData.to, claimData.data, claimData.validFrom, claimData.validTo]);
+
+      // Alice (owner of ClaimVerifier) has to sign and return the claim
+      const signedClaimDataHashOverride = await alice.signMessage(ethers.utils.arrayify(claimDataHashOverride));
+
+      await identity.connect(bob).addClaim({ ...claimData, signature: signedClaimDataHashOverride });
+
+      expect((await identity.claims(identifier)).from).to.equal(from);
+      expect((await identity.claims(identifier)).to).to.equal(arbitraryAddress);
     });
 
     it("should be able to remove claims", async function () {
