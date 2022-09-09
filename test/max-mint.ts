@@ -36,7 +36,7 @@ describe("Max Mint", async function () {
 
       // Bob needs to ask the target (NFT) contract which claim he needs and from whom it needs to be signed
       const identifier = await nfme.claimIdentifier();
-      const from = await nfme.claimSigner();
+      const from = await nfme.claimIssuer();
 
       // Identity (Bob is owner) has to create the claim and send it over to Alice (owner of ClaimVerifier)
       const claimData = {

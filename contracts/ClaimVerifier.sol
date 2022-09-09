@@ -8,11 +8,11 @@ import "./Identity.sol";
 contract ClaimVerifier is Ownable {
 
     string public claimIdentifier;
-    address public claimSigner;
+    address public claimIssuer;
 
-    constructor(string memory _claimIdentifier, address _claimSigner) {
+    constructor(string memory _claimIdentifier, address _claimIssuer) {
         claimIdentifier = _claimIdentifier;
-        claimSigner = _claimSigner;
+        claimIssuer = _claimIssuer;
     }
 
     function getMessageHash(
@@ -44,7 +44,7 @@ contract ClaimVerifier is Ownable {
 
         bytes32 ethSignedMessageHash = getEthSignedMessageHash(messageHash);
 
-        return recoverSigner(ethSignedMessageHash, claim.signature) == claimSigner;
+        return recoverSigner(ethSignedMessageHash, claim.signature) == claimIssuer;
     }
 
     function recoverSigner(bytes32 _ethSignedMessageHash, bytes memory _signature) public pure returns (address) {
@@ -80,7 +80,7 @@ contract ClaimVerifier is Ownable {
         ) = Identity(payable(msg.sender)).claims(claimIdentifier);
 
         require(from != address(0x0), "Required claim not available");
-        require(from == claimSigner, "Wrong claim issuer");
+        require(from == claimIssuer, "Wrong claim issuer");
 
         require(to == msg.sender, "Wrong claim receiver");
 
