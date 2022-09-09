@@ -15,10 +15,7 @@ contract NFMe is ERC721, ClaimVerifier {
 
     Counters.Counter private _tokenIdCounter;
 
-    constructor(
-        string memory _claimIdentifier,
-        address _claimSigner
-    ) ERC721("Itheums NFMe", "NFMe") ClaimVerifier(_claimIdentifier, _claimSigner) {}
+    constructor() ERC721("Itheums NFMe", "NFMe") ClaimVerifier() {}
 
     function safeMint() external payable returns (bool) {
         require(msg.value >= MINT_PRICE, "Please send enough ether");
@@ -27,7 +24,7 @@ contract NFMe is ERC721, ClaimVerifier {
 
         require(tokenId < MAX_SUPPLY, "We are already minted out");
 
-        _verifyClaim();
+        _verifyClaim("nfme_mint_allowed", address(0x72e37d393c70823113a7176aC1F7C579d2C5623E));
 
         _tokenIdCounter.increment();
         _safeMint(msg.sender, tokenId);

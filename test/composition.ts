@@ -8,6 +8,8 @@ describe("Composition", async function () {
     // Signer
     const [ alice, bob, carol, _ ] = await ethers.getSigners();
 
+    console.log(alice.address);
+
     // Identity
     const Identity = await ethers.getContractFactory("Identity");
     const identity = await Identity.connect(bob).deploy();
@@ -21,7 +23,7 @@ describe("Composition", async function () {
 
     // NFMe
     const NFMe = await ethers.getContractFactory("NFMe");
-    const nfme = await NFMe.deploy("nfme_mint_allowed", alice.address);
+    const nfme = await NFMe.deploy();
 
     await nfme.deployed();
 
@@ -34,7 +36,7 @@ describe("Composition", async function () {
     it("should deploy all contracts", async function () {
       const { nfme, alice } = await loadFixture(setUpContracts);
 
-      expect(await nfme.claimIssuer()).to.equal(alice.address);
+      expect(await nfme.owner()).to.equal(alice.address);
     });
   });
 
@@ -42,14 +44,10 @@ describe("Composition", async function () {
     it("should be able to mint when everything is fulfilled", async function () {
       const { identity, nfme, alice, bob, carol, _ } = await loadFixture(setUpContracts);
 
-      // Bob needs to ask the target (NFT) contract which claim he needs and from whom it needs to be signed
-      const identifier = await nfme.connect(bob).claimIdentifier();
-      const from = await nfme.connect(bob).claimIssuer();
-
       // Identity (Bob is owner) has to create the claim and send it over to 'from'
       const claimData = {
-        identifier,
-        from,
+        identifier: "nfme_mint_allowed",
+        from: alice.address,
         to: identity.address,
         data: ethers.utils.formatBytes32String(""),
         validFrom: 0,
@@ -76,14 +74,10 @@ describe("Composition", async function () {
     it("should be able to add another owner and also mint from it", async function () {
       const { identity, nfme, alice, bob, carol, _ } = await loadFixture(setUpContracts);
 
-      // Bob needs to ask the target (NFT) contract which claim he needs and from whom it needs to be signed
-      const identifier = await nfme.claimIdentifier();
-      const from = await nfme.claimIssuer();
-
       // Identity (Bob is owner) has to create the claim and send it over to 'from'
       const claimData = {
-        identifier,
-        from,
+        identifier: "nfme_mint_allowed",
+        from: alice.address,
         to: identity.address,
         data: ethers.utils.formatBytes32String(""),
         validFrom: 0,
@@ -120,13 +114,9 @@ describe("Composition", async function () {
     it("should fail when trying to mint without having valid claim (wrong from)", async function () {
       const { identity, nfme, alice, bob, carol, _ } = await loadFixture(setUpContracts);
 
-      // Bob needs to ask the target (NFT) contract which claim he needs and from whom it needs to be signed
-      const identifier = await nfme.claimIdentifier();
-      const from = await nfme.claimIssuer();
-
       // Identity (Bob is owner) has to create the claim and send it over to Alice 'from'
       const claimData = {
-        identifier,
+        identifier: "nfme_mint_allowed",
         from: carol.address,
         to: identity.address,
         data: ethers.utils.formatBytes32String(""),
@@ -151,14 +141,10 @@ describe("Composition", async function () {
     it("should fail when trying to mint without having valid claim (wrong to)", async function () {
       const { identity, nfme, alice, bob, carol, _ } = await loadFixture(setUpContracts);
 
-      // Bob needs to ask the target (NFT) contract which claim he needs and from whom it needs to be signed
-      const identifier = await nfme.claimIdentifier();
-      const from = await nfme.claimIssuer();
-
       // Identity (Bob is owner) has to create the claim and send it over to Alice 'from'
       const claimData = {
-        identifier,
-        from,
+        identifier: "nfme_mint_allowed",
+        from: alice.address,
         to: carol.address,
         data: ethers.utils.formatBytes32String(""),
         validFrom: 0,
@@ -182,14 +168,10 @@ describe("Composition", async function () {
     it("should fail when trying to mint without having valid claim (wrong signer)", async function () {
       const { identity, nfme, alice, bob, carol, _ } = await loadFixture(setUpContracts);
 
-      // Bob needs to ask the target (NFT) contract which claim he needs and from whom it needs to be signed
-      const identifier = await nfme.claimIdentifier();
-      const from = await nfme.claimIssuer();
-
       // Identity (Bob is owner) has to create the claim and send it over to Alice (owner of ClaimVerifier)
       const claimData = {
-        identifier,
-        from,
+        identifier: "nfme_mint_allowed",
+        from: alice.address,
         to: identity.address,
         data: ethers.utils.formatBytes32String(""),
         validFrom: 0,
@@ -213,14 +195,10 @@ describe("Composition", async function () {
     it("should fail when trying to mint without having valid signature (original is altered)", async function () {
       const { identity, nfme, alice, bob, carol, _ } = await loadFixture(setUpContracts);
 
-      // Bob needs to ask the target (NFT) contract which claim he needs and from whom it needs to be signed
-      const identifier = await nfme.claimIdentifier();
-      const from = await nfme.claimIssuer();
-
       // Identity (Bob is owner) has to create the claim and send it over to Alice (owner of ClaimVerifier)
       const claimData = {
-        identifier,
-        from,
+        identifier: "nfme_mint_allowed",
+        from: alice.address,
         to: identity.address,
         data: ethers.utils.formatBytes32String(""),
         validFrom: 0,
@@ -246,14 +224,10 @@ describe("Composition", async function () {
     it("should fail when trying to mint with having valid signature but altered claim data (identifier)", async function () {
       const { identity, nfme, alice, bob, carol, _ } = await loadFixture(setUpContracts);
 
-      // Bob needs to ask the target (NFT) contract which claim he needs and from whom it needs to be signed
-      const identifier = await nfme.claimIdentifier();
-      const from = await nfme.claimIssuer();
-
       // Identity (Bob is owner) has to create the claim and send it over to Alice (owner of ClaimVerifier)
       const claimData = {
-        identifier,
-        from,
+        identifier: "nfme_mint_allowed",
+        from: alice.address,
         to: identity.address,
         data: ethers.utils.formatBytes32String(""),
         validFrom: 0,
@@ -276,14 +250,10 @@ describe("Composition", async function () {
     it("should fail when trying to mint with having valid signature but altered claim data (data)", async function () {
       const { identity, nfme, alice, bob, carol, _ } = await loadFixture(setUpContracts);
 
-      // Bob needs to ask the target (NFT) contract which claim he needs and from whom it needs to be signed
-      const identifier = await nfme.claimIdentifier();
-      const from = await nfme.claimIssuer();
-
       // Identity (Bob is owner) has to create the claim and send it over to Alice (owner of ClaimVerifier)
       const claimData = {
-        identifier,
-        from,
+        identifier: "nfme_mint_allowed",
+        from: alice.address,
         to: identity.address,
         data: ethers.utils.formatBytes32String(""),
         validFrom: 0,
@@ -306,14 +276,10 @@ describe("Composition", async function () {
     it("should fail when trying to mint with having valid signature but altered claim data (validFrom)", async function () {
       const { identity, nfme, alice, bob, carol, _ } = await loadFixture(setUpContracts);
 
-      // Bob needs to ask the target (NFT) contract which claim he needs and from whom it needs to be signed
-      const identifier = await nfme.claimIdentifier();
-      const from = await nfme.claimIssuer();
-
       // Identity (Bob is owner) has to create the claim and send it over to Alice (owner of ClaimVerifier)
       const claimData = {
-        identifier,
-        from,
+        identifier: "nfme_mint_allowed",
+        from: alice.address,
         to: identity.address,
         data: ethers.utils.formatBytes32String(""),
         validFrom: 0,
@@ -336,14 +302,10 @@ describe("Composition", async function () {
     it("should fail when trying to mint with having valid signature but altered claim data (validTo)", async function () {
       const { identity, nfme, alice, bob, carol, _ } = await loadFixture(setUpContracts);
 
-      // Bob needs to ask the target (NFT) contract which claim he needs and from whom it needs to be signed
-      const identifier = await nfme.claimIdentifier();
-      const from = await nfme.claimIssuer();
-
       // Identity (Bob is owner) has to create the claim and send it over to Alice (owner of ClaimVerifier)
       const claimData = {
-        identifier,
-        from,
+        identifier: "nfme_mint_allowed",
+        from: alice.address,
         to: identity.address,
         data: ethers.utils.formatBytes32String(""),
         validFrom: 0,
@@ -374,14 +336,10 @@ describe("Composition", async function () {
     it("should fail when trying to mint if validTo is in the 'past'", async function () {
       const { identity, nfme, alice, bob, carol, _ } = await loadFixture(setUpContracts);
 
-      // Bob needs to ask the target (NFT) contract which claim he needs and from whom it needs to be signed
-      const identifier = await nfme.claimIdentifier();
-      const from = await nfme.claimIssuer();
-
       // Identity (Bob is owner) has to create the claim and send it over to 'from'
       const claimData = {
-        identifier,
-        from,
+        identifier: "nfme_mint_allowed",
+        from: alice.address,
         to: identity.address,
         data: ethers.utils.formatBytes32String(""),
         validFrom: 0,
@@ -404,14 +362,10 @@ describe("Composition", async function () {
     it("should fail when trying to mint if validFrom is in the 'future'", async function () {
       const { identity, nfme, alice, bob, carol, _ } = await loadFixture(setUpContracts);
 
-      // Bob needs to ask the target (NFT) contract which claim he needs and from whom it needs to be signed
-      const identifier = await nfme.claimIdentifier();
-      const from = await nfme.claimIssuer();
-
       // Identity (Bob is owner) has to create the claim and send it over to 'from'
       const claimData = {
-        identifier,
-        from,
+        identifier: "nfme_mint_allowed",
+        from: alice.address,
         to: identity.address,
         data: ethers.utils.formatBytes32String(""),
         validFrom: await ethers.provider.getBlockNumber() + 5,
@@ -436,14 +390,10 @@ describe("Composition", async function () {
     it("should be able to add claims", async function () {
       const { identity, nfme, alice, bob, carol, _ } = await loadFixture(setUpContracts);
 
-      // Bob needs to ask the target (NFT) contract which claim he needs and from whom it needs to be signed
-      const identifier = await nfme.claimIdentifier();
-      const from = await nfme.claimIssuer();
-
       // Identity (Bob is owner) has to create the claim and send it over to 'from'
       const claimData = {
-        identifier,
-        from,
+        identifier: "nfme_mint_allowed",
+        from: alice.address,
         to: identity.address,
         data: ethers.utils.formatBytes32String(""),
         validFrom: 0,
@@ -455,24 +405,20 @@ describe("Composition", async function () {
       // Alice (owner of ClaimVerifier) has to sign and return the claim
       const signedClaimDataHash = await alice.signMessage(ethers.utils.arrayify(claimDataHash));
 
-      expect((await identity.claims(identifier)).from).to.equal(ethers.constants.AddressZero);
+      expect((await identity.claims(claimData.identifier)).from).to.equal(ethers.constants.AddressZero);
 
       await identity.connect(bob).addClaim({ ...claimData, signature: signedClaimDataHash });
 
-      expect((await identity.claims(identifier)).from).to.equal(from);
+      expect((await identity.claims(claimData.identifier)).from).to.equal(claimData.from);
     });
 
     it("should be able to overwrite claims", async function () {
       const { identity, nfme, alice, bob, carol, _ } = await loadFixture(setUpContracts);
 
-      // Bob needs to ask the target (NFT) contract which claim he needs and from whom it needs to be signed
-      const identifier = await nfme.claimIdentifier();
-      const from = await nfme.claimIssuer();
-
       // Identity (Bob is owner) has to create the claim and send it over to 'from'
       const claimData = {
-        identifier,
-        from,
+        identifier: "nfme_mint_allowed",
+        from: alice.address,
         to: identity.address,
         data: ethers.utils.formatBytes32String(""),
         validFrom: 0,
@@ -484,12 +430,12 @@ describe("Composition", async function () {
       // Alice (owner of ClaimVerifier) has to sign and return the claim
       const signedClaimDataHash = await alice.signMessage(ethers.utils.arrayify(claimDataHash));
 
-      expect((await identity.claims(identifier)).from).to.equal(ethers.constants.AddressZero);
+      expect((await identity.claims(claimData.identifier)).from).to.equal(ethers.constants.AddressZero);
 
       await identity.connect(bob).addClaim({ ...claimData, signature: signedClaimDataHash });
 
-      expect((await identity.claims(identifier)).from).to.equal(from);
-      expect((await identity.claims(identifier)).to).to.equal(claimData.to);
+      expect((await identity.claims(claimData.identifier)).from).to.equal(claimData.from);
+      expect((await identity.claims(claimData.identifier)).to).to.equal(claimData.to);
 
       const arbitraryAddress = ethers.Wallet.createRandom().address;
 
@@ -502,21 +448,17 @@ describe("Composition", async function () {
 
       await identity.connect(bob).addClaim({ ...claimData, signature: signedClaimDataHashOverride });
 
-      expect((await identity.claims(identifier)).from).to.equal(from);
-      expect((await identity.claims(identifier)).to).to.equal(arbitraryAddress);
+      expect((await identity.claims(claimData.identifier)).from).to.equal(claimData.from);
+      expect((await identity.claims(claimData.identifier)).to).to.equal(arbitraryAddress);
     });
 
     it("should be able to remove claims", async function () {
       const { identity, nfme, alice, bob, carol, _ } = await loadFixture(setUpContracts);
 
-      // Bob needs to ask the target (NFT) contract which claim he needs and from whom it needs to be signed
-      const identifier = await nfme.claimIdentifier();
-      const from = await nfme.claimIssuer();
-
       // Identity (Bob is owner) has to create the claim and send it over to 'from'
       const claimData = {
-        identifier,
-        from,
+        identifier: "nfme_mint_allowed",
+        from: alice.address,
         to: identity.address,
         data: ethers.utils.formatBytes32String(""),
         validFrom: 0,
@@ -528,28 +470,24 @@ describe("Composition", async function () {
       // Alice (owner of ClaimVerifier) has to sign and return the claim
       const signedClaimDataHash = await alice.signMessage(ethers.utils.arrayify(claimDataHash));
 
-      expect((await identity.claims(identifier)).from).to.equal(ethers.constants.AddressZero);
+      expect((await identity.claims(claimData.identifier)).from).to.equal(ethers.constants.AddressZero);
 
       await identity.connect(bob).addClaim({ ...claimData, signature: signedClaimDataHash });
 
-      expect((await identity.claims(identifier)).from).to.equal(from);
+      expect((await identity.claims(claimData.identifier)).from).to.equal(claimData.from);
 
-      await identity.connect(bob).removeClaim(identifier);
+      await identity.connect(bob).removeClaim(claimData.identifier);
 
-      expect((await identity.claims(identifier)).from).to.equal(ethers.constants.AddressZero);
+      expect((await identity.claims(claimData.identifier)).from).to.equal(ethers.constants.AddressZero);
     });
 
     it("should emit a ClaimAdded event", async function () {
       const { identity, nfme, alice, bob, carol, _ } = await loadFixture(setUpContracts);
 
-      // Bob needs to ask the target (NFT) contract which claim he needs and from whom it needs to be signed
-      const identifier = await nfme.claimIdentifier();
-      const from = await nfme.claimIssuer();
-
       // Identity (Bob is owner) has to create the claim and send it over to 'from'
       const claimData = {
-        identifier,
-        from,
+        identifier: "nfme_mint_allowed",
+        from: alice.address,
         to: identity.address,
         data: ethers.utils.formatBytes32String(""),
         validFrom: 0,
@@ -562,7 +500,7 @@ describe("Composition", async function () {
       const signedClaimDataHash = await alice.signMessage(ethers.utils.arrayify(claimDataHash));
 
       expect(await identity.connect(bob).addClaim({...claimData, signature: signedClaimDataHash}))
-        .to.emit(nfme, 'ClaimAdded').withArgs(identifier, from);
+        .to.emit(nfme, 'ClaimAdded').withArgs(claimData.identifier, claimData.from);
     });
 
     it("should emit a ClaimRemoved event", async function () {

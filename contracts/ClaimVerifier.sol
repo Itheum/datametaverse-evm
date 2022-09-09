@@ -7,14 +7,6 @@ import "./Identity.sol";
 
 contract ClaimVerifier is Ownable {
 
-    string public claimIdentifier;
-    address public claimIssuer;
-
-    constructor(string memory _claimIdentifier, address _claimIssuer) {
-        claimIdentifier = _claimIdentifier;
-        claimIssuer = _claimIssuer;
-    }
-
     function getMessageHash(
         string memory _identifier,
         address _from,
@@ -32,7 +24,7 @@ contract ClaimVerifier is Ownable {
         );
     }
 
-    function verifySignature(SharedStructs.Claim memory claim) public view returns (bool) {
+    function verifySignature(SharedStructs.Claim memory claim, address _claimIssuer) public view returns (bool) {
         bytes32 messageHash = getMessageHash(
             claim.identifier,
             claim.from,
@@ -44,7 +36,7 @@ contract ClaimVerifier is Ownable {
 
         bytes32 ethSignedMessageHash = getEthSignedMessageHash(messageHash);
 
-        return recoverSigner(ethSignedMessageHash, claim.signature) == claimIssuer;
+        return recoverSigner(ethSignedMessageHash, claim.signature) == _claimIssuer;
     }
 
     function recoverSigner(bytes32 _ethSignedMessageHash, bytes memory _signature) public pure returns (address) {
@@ -68,7 +60,7 @@ contract ClaimVerifier is Ownable {
         return (r, s, v);
     }
 
-    function _verifyClaim() internal {
+    function _verifyClaim(string memory _claimIdentifier, address _claimIssuer) internal {
         (
         string memory identifier,
         address from,
@@ -77,10 +69,10 @@ contract ClaimVerifier is Ownable {
         uint64 validFrom,
         uint64 validTo,
         bytes memory signature
-        ) = Identity(payable(msg.sender)).claims(claimIdentifier);
+        ) = Identity(payable(msg.sender)).claims(_claimIdentifier);
 
         require(from != address(0x0), "Required claim not available");
-        require(from == claimIssuer, "Wrong claim issuer");
+        require(from == _claimIssuer, "Wrong claim issuer");
 
         require(to == msg.sender, "Wrong claim receiver");
 
@@ -92,6 +84,6 @@ contract ClaimVerifier is Ownable {
             require(block.number <= validTo, 'Claim not valid anymore');
         }
 
-        require(verifySignature(SharedStructs.Claim(identifier, from, to, data, validFrom, validTo, signature)), "Claim signature not valid");
+        require(verifySignature(SharedStructs.Claim(identifier, from, to, data, validFrom, validTo, signature), _claimIssuer), "Claim signature not valid");
     }
 }

@@ -21,7 +21,7 @@ describe("Max Mint", async function () {
 
     // NFMe
     const NFMe = await ethers.getContractFactory("NFMe");
-    const nfme = await NFMe.deploy("nfme_mint_allowed", alice.address);
+    const nfme = await NFMe.deploy();
 
     await nfme.deployed();
 
@@ -34,14 +34,10 @@ describe("Max Mint", async function () {
     it("should fail when trying to mint when already minted out", async function () {
       const { identity, nfme, alice, bob, carol, _ } = await loadFixture(setUpContracts);
 
-      // Bob needs to ask the target (NFT) contract which claim he needs and from whom it needs to be signed
-      const identifier = await nfme.claimIdentifier();
-      const from = await nfme.claimIssuer();
-
       // Identity (Bob is owner) has to create the claim and send it over to Alice (owner of ClaimVerifier)
       const claimData = {
-        identifier,
-        from,
+        identifier: "nfme_mint_allowed",
+        from: alice.address,
         to: identity.address,
         data: ethers.utils.formatBytes32String(""),
         validFrom: 0,
