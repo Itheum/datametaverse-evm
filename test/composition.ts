@@ -103,6 +103,52 @@ describe("Composition", async function () {
       expect(await nfme.ownerOf(1)).to.equal(identity.address);
     });
 
+    it("should fail transferring the NFT after minting it (transferFrom & safeTransferFrom)", async function () {
+      const { identity, nfme, alice, bob, carol, _ } = await loadFixture(setUpContracts);
+
+      // Identity (Bob is owner) has to create the claim and send it over to 'from'
+      const claimData = {
+        identifier: "nfme_mint_allowed",
+        from: alice.address,
+        to: identity.address,
+        data: ethers.utils.formatBytes32String(""),
+        validFrom: 0,
+        validTo: 0,
+      };
+
+      // Alice (owner of ClaimVerifier) has to sign and return the claim
+      const claimDataHash = ethers.utils.solidityKeccak256(["string", "address", "address", "bytes", "uint64", "uint64"], [claimData.identifier, claimData.from, claimData.to, claimData.data, claimData.validFrom, claimData.validTo]);
+
+      const signedClaimDataHash = await alice.signMessage(ethers.utils.arrayify(claimDataHash));
+
+      // Bob puts the claim data and the signature to his Identity contract
+      await identity.connect(bob).addClaim({ ...claimData, signature: signedClaimDataHash });
+
+      // mint via ERC725X
+      const mintFunctionSignatureHash = ethers.utils.keccak256(ethers.utils.toUtf8Bytes("safeMint()")).substring(0, 10);
+      await identity.connect(bob).execute(0, nfme.address, ethers.utils.parseEther("0.1"), mintFunctionSignatureHash);
+
+      expect(await nfme.balanceOf(identity.address)).to.equal(Number(1));
+
+      expect(await nfme.ownerOf(0)).to.equal(identity.address);
+
+      // transferFrom should fail
+      const transferFromFunctionSignatureHash = ethers.utils.keccak256(ethers.utils.toUtf8Bytes("transferFrom(address,address,uint256)")).substring(0, 10);
+      let encodedFunctionCall = ethers.utils.solidityPack(["uint32", "uint256", "uint256", "uint256"], [transferFromFunctionSignatureHash, identity.address, carol.address, 0]);
+
+      await expect(identity.connect(bob).execute(0, nfme.address, 0, encodedFunctionCall)).to.revertedWith("Transferring NFT is not allowed");
+
+      // safeTransferFrom should fail
+      const safeTransferFromFunctionSignatureHash = ethers.utils.keccak256(ethers.utils.toUtf8Bytes("safeTransferFrom(address,address,uint256)")).substring(0, 10);
+      encodedFunctionCall = ethers.utils.solidityPack(["uint32", "uint256", "uint256", "uint256"], [safeTransferFromFunctionSignatureHash, identity.address, carol.address, 0]);
+
+      await expect(identity.connect(bob).execute(0, nfme.address, 0, encodedFunctionCall)).to.revertedWith("Transferring NFT is not allowed");
+
+      expect(await nfme.balanceOf(identity.address)).to.equal(Number(1));
+
+      expect(await nfme.ownerOf(0)).to.equal(identity.address);
+    });
+
     it("should fail when trying to mint without having respective claim", async function () {
       const { identity, nfme, bob } = await loadFixture(setUpContracts);
 
