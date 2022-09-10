@@ -17,15 +17,11 @@ describe("Max Mint", async function () {
     const fundingTx = await bob.sendTransaction({ value: ethers.utils.parseEther("5000"), to: identity.address });
     await fundingTx.wait();
 
-    console.log("Identity deployed to:", identity.address);
-
     // NFMe
     const NFMe = await ethers.getContractFactory("NFMe");
     const nfme = await NFMe.deploy();
 
     await nfme.deployed();
-
-    console.log("NFMe deployed to:", nfme.address);
 
     return { identity, nfme, alice, bob, carol, _ };
   }

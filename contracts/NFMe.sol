@@ -2,7 +2,7 @@
 pragma solidity ^0.8.9;
 
 import "@openzeppelin/contracts/utils/Counters.sol";
-import "./ERC721NT.sol";
+import "./sdk/ERC721NT.sol";
 
 contract NFMe is ERC721NT("Itheums NFMe", "NFMe") {
     uint16 constant MAX_SUPPLY = 10;
