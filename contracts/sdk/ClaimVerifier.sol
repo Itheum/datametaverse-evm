@@ -1,11 +1,13 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.9;
 
-import "@openzeppelin/contracts/access/Ownable.sol";
 import "./Common.sol";
 import "./Identity.sol";
 
-contract ClaimVerifier is Ownable {
+contract ClaimVerifier {
+
+    // identity contract address -> claimIdentifier -> bool
+    mapping (address => mapping(string => bool)) public revocations;
 
     function getMessageHash(
         string memory _identifier,
