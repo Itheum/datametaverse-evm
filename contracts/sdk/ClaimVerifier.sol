@@ -1,13 +1,21 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.9;
 
+import "@openzeppelin/contracts/access/Ownable.sol";
 import "./Common.sol";
 import "./Identity.sol";
 
-contract ClaimVerifier {
+contract ClaimVerifier is Ownable {
 
-    // identity contract address -> claimIdentifier -> bool
-    mapping (address => mapping(string => bool)) public revocations;
+    mapping(address => mapping(string => bool)) public revocations;
+
+    function addRevocation(address _to, string memory _identifier) external onlyOwner {
+        revocations[_to][_identifier] = true;
+    }
+
+    function removeRevocation(address _to, string memory _identifier) external onlyOwner {
+        delete revocations[_to][_identifier];
+    }
 
     function getMessageHash(
         string memory _identifier,
@@ -75,7 +83,7 @@ contract ClaimVerifier {
 
         require(from != address(0x0), "Required claim not available");
         require(from == _claimIssuer, "Wrong claim issuer");
-
+        require(!revocations[to][identifier], "Claim has been revoked");
         require(to == msg.sender, "Wrong claim receiver");
 
         if (validFrom != 0) {

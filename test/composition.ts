@@ -57,6 +57,38 @@ describe("Composition", async function () {
       expect(await nfme.ownerOf(0)).to.equal(identity.address);
     });
 
+    it("should not be able to mint when claim has been revoked", async function () {
+      const { identity, nfme, alice, bob, carol, _ } = await loadFixture(setUpContracts);
+
+      // Identity (Bob is owner) has to create the claim and send it over to 'from'
+      const claimData = {
+        identifier: "nfme_mint_allowed",
+        from: alice.address,
+        to: identity.address,
+        data: ethers.utils.formatBytes32String(""),
+        validFrom: 0,
+        validTo: 0,
+      };
+
+      // Alice (owner of ClaimVerifier) has to sign and return the claim
+      const claimDataHash = ethers.utils.solidityKeccak256(["string", "address", "address", "bytes", "uint64", "uint64"], [claimData.identifier, claimData.from, claimData.to, claimData.data, claimData.validFrom, claimData.validTo]);
+
+      const signedClaimDataHash = await alice.signMessage(ethers.utils.arrayify(claimDataHash));
+
+      // Bob puts the claim data and the signature to his Identity contract
+      await identity.connect(bob).addClaim({ ...claimData, signature: signedClaimDataHash });
+
+      // Claim gets revoked by issuer
+      await nfme.connect(alice).addRevocation(claimData.to, claimData.identifier);
+
+      // mint via ERC725X
+      const mintFunctionSignatureHash = ethers.utils.keccak256(ethers.utils.toUtf8Bytes("safeMint()")).substring(0, 10);
+      await expect(identity.connect(bob).execute(0, nfme.address, ethers.utils.parseEther("0.1"), mintFunctionSignatureHash))
+        .to.revertedWith("Claim has been revoked");
+
+      expect(await nfme.balanceOf(identity.address)).to.equal(Number(0));
+    });
+
     it("should be able to add another owner and also mint from it", async function () {
       const { identity, nfme, alice, bob, carol, _ } = await loadFixture(setUpContracts);
 
@@ -455,6 +487,36 @@ describe("Composition", async function () {
       const mintFunctionSignatureHash = ethers.utils.keccak256(ethers.utils.toUtf8Bytes("safeMint()")).substring(0, 10);
       await expect(identity.connect(bob).execute(0, nfme.address, ethers.utils.parseEther("0.1"), mintFunctionSignatureHash))
         .to.revertedWith("Claim not yet valid");
+    });
+  });
+
+  describe('Claim Revocations', function() {
+    it("should be able to add and remove claim revocations as an owner", async function () {
+      const { identity, nfme, alice, bob, carol, _ } = await loadFixture(setUpContracts);
+
+      expect(await nfme.revocations(identity.address, "nfe_mint_allowed")).to.equal(false);
+
+      // Add revocation
+      await nfme.connect(alice).addRevocation(identity.address, "nfe_mint_allowed");
+
+      expect(await nfme.revocations(identity.address, "nfe_mint_allowed")).to.equal(true);
+
+      // Remove revocation
+      await nfme.connect(alice).removeRevocation(identity.address, "nfe_mint_allowed");
+
+      expect(await nfme.revocations(identity.address, "nfe_mint_allowed")).to.equal(false);
+    });
+
+    it("should not be able to add and remove claim revocations as a non-owner", async function () {
+      const { identity, nfme, alice, bob, carol, _ } = await loadFixture(setUpContracts);
+
+      expect(await nfme.revocations(identity.address, "nfe_mint_allowed")).to.equal(false);
+
+      // Add revocation
+      await expect(nfme.connect(bob).addRevocation(identity.address, "nfe_mint_allowed"))
+        .to.revertedWith("Ownable: caller is not the owner");
+
+      expect(await nfme.revocations(identity.address, "nfe_mint_allowed")).to.equal(false);
     });
   });
 
