@@ -2,8 +2,8 @@
 pragma solidity ^0.8.9;
 
 import "@openzeppelin/contracts/utils/Counters.sol";
-import "./sdk/ERC721NT.sol";
-import "./sdk/ClaimVerifier.sol";
+import "../standards/ERC721NT.sol";
+import "../identity/ClaimVerifier.sol";
 
 contract NFMe is ERC721NT("Itheum NFMe", "NFMe"), ClaimVerifier {
     uint16 constant MAX_SUPPLY = 10;

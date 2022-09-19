@@ -1,7 +1,7 @@
 {
-  "name": "poc-identity-and-claims-evm",
+  "name": "dataverse-evm",
   "version": "1.0.0",
-  "description": "POC for assessing feasibility of ERC725 and ERC735 to power our EVM identity portal",
+  "description": "SDK to power Itheum's EVM web3 identity portal",
   "main": "index.js",
   "scripts": {
     "test": "npx hardhat test"

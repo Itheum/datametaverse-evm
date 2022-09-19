@@ -12,6 +12,7 @@ We tested the behaviour specified below.
 ✅ mint with < 0.1 ether --> failure\
 ✅ mint when sold out --> failure\
 ✅ mint without claim --> failure\
+✅ mint when claim is revoked --> failure\
 ✅ mint where claimSigner is wrong --> failure\
 ✅ mint where receiver is wrong --> failure\
 ✅ mint when claim is not yet valid --> failure\
@@ -21,6 +22,9 @@ We tested the behaviour specified below.
 ✅ mint when singature is not altered but data field is altered --> failure\
 ✅ mint when signature is not altered but validFrom is altered --> failure\
 ✅ mint when signature is not altered but validTo is altered --> failure
+
+### Claim Verifier
+✅ owner can add and remove claim revocations --> success
 
 ### Identity Factory
 ✅ deployed contract should be owned by issuer --> success

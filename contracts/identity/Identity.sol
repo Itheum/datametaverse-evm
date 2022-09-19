@@ -3,7 +3,7 @@ pragma solidity ^0.8.9;
 
 import "@erc725/smart-contracts/contracts/ERC725.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
-import "./Common.sol";
+import "../utils/Common.sol";
 
 contract Identity is ERC725(tx.origin), IERC721Receiver {
 

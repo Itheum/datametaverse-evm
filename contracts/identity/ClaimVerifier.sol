@@ -2,8 +2,8 @@
 pragma solidity ^0.8.9;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
-import "./Common.sol";
-import "./Identity.sol";
+import "../utils/Common.sol";
+import "../identity/Identity.sol";
 
 contract ClaimVerifier is Ownable {
 
