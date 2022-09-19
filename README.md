@@ -1,13 +1,13 @@
-# Identiy and Claims PoC for EVM
-POC for assessing feasibility of ERC725 and ERC735 to power our EVM identity portal
+# Itheum DataMetaverse EVM SDK
+SDK to power Itheum's EVM web3 identity portal.
 
-##Unit Tests
+## Unit Tests
 We tested the behaviour specified below.
 
-###General
+### General
 ✅ deploy all contracts --> success
 
-###NFMe
+### NFMe
 ✅ mint with everything fulfilled --> success\
 ✅ mint with < 0.1 ether --> failure\
 ✅ mint when sold out --> failure\
@@ -22,10 +22,10 @@ We tested the behaviour specified below.
 ✅ mint when signature is not altered but validFrom is altered --> failure\
 ✅ mint when signature is not altered but validTo is altered --> failure
 
-###Identity Factory
+### Identity Factory
 ✅ deployed contract should be owned by issuer --> success
 
-###Identity
+### Identity
 ✅ additional owner call onlyOwner function --> success\
 ✅ not additional owner call onlyOwner function --> failure\
 ✅ (additional) owner add claim and it is stored --> success\
