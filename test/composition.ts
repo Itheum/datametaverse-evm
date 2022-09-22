@@ -57,6 +57,39 @@ describe("Composition", async function () {
       expect(await nfme.ownerOf(0)).to.equal(identity.address);
     });
 
+    it("should not be able to mint twice, even when everything is fulfilled", async function () {
+      const { identity, nfme, alice, bob, carol, _ } = await loadFixture(setUpContracts);
+
+      // Identity (Bob is owner) has to create the claim and send it over to 'from'
+      const claimData = {
+        identifier: "nfme_mint_allowed",
+        from: alice.address,
+        to: identity.address,
+        data: ethers.utils.formatBytes32String(""),
+        validFrom: 0,
+        validTo: 0,
+      };
+
+      // Alice (owner of ClaimVerifier) has to sign and return the claim
+      const claimDataHash = ethers.utils.solidityKeccak256(["string", "address", "address", "bytes", "uint64", "uint64"], [claimData.identifier, claimData.from, claimData.to, claimData.data, claimData.validFrom, claimData.validTo]);
+
+      const signedClaimDataHash = await alice.signMessage(ethers.utils.arrayify(claimDataHash));
+
+      // Bob puts the claim data and the signature to his Identity contract
+      await identity.connect(bob).addClaim({ ...claimData, signature: signedClaimDataHash });
+
+      // mint via ERC725X
+      const mintFunctionSignatureHash = ethers.utils.keccak256(ethers.utils.toUtf8Bytes("safeMint()")).substring(0, 10);
+      await identity.connect(bob).execute(0, nfme.address, ethers.utils.parseEther("0.1"), mintFunctionSignatureHash);
+
+      expect(await nfme.balanceOf(identity.address)).to.equal(Number(1));
+
+      expect(await nfme.ownerOf(0)).to.equal(identity.address);
+
+      await expect(identity.connect(bob).execute(0, nfme.address, ethers.utils.parseEther("0.1"), mintFunctionSignatureHash))
+        .to.revertedWith("Already minted");
+    });
+
     it("should not be able to mint when claim has been revoked", async function () {
       const { identity, nfme, alice, bob, carol, _ } = await loadFixture(setUpContracts);
 
@@ -112,13 +145,11 @@ describe("Composition", async function () {
 
       // mint via ERC725X
       const mintFunctionSignatureHash = ethers.utils.keccak256(ethers.utils.toUtf8Bytes("safeMint()")).substring(0, 10);
-      await identity.connect(bob).execute(0, nfme.address, ethers.utils.parseEther("0.1"), mintFunctionSignatureHash);
       await identity.connect(carol).execute(0, nfme.address, ethers.utils.parseEther("0.1"), mintFunctionSignatureHash);
 
-      expect(await nfme.balanceOf(identity.address)).to.equal(Number(2));
+      expect(await nfme.balanceOf(identity.address)).to.equal(Number(1));
 
       expect(await nfme.ownerOf(0)).to.equal(identity.address);
-      expect(await nfme.ownerOf(1)).to.equal(identity.address);
     });
 
     it("should fail transferring the NFT after minting it when it's not address zero (transferFrom & safeTransferFrom)", async function () {

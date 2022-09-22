@@ -6,7 +6,7 @@ import "../standards/ERC721NT.sol";
 import "../identity/ClaimVerifier.sol";
 
 contract NFMe is ERC721NT("Itheum NFMe", "NFMe"), ClaimVerifier {
-    uint16 constant MAX_SUPPLY = 10;
+    uint16 constant MAX_SUPPLY = 2;
     uint256 constant MINT_PRICE = 0.1 ether;
 
     using Counters for Counters.Counter;
@@ -14,6 +14,8 @@ contract NFMe is ERC721NT("Itheum NFMe", "NFMe"), ClaimVerifier {
     Counters.Counter private _tokenIdCounter;
 
     function safeMint() external payable returns (bool) {
+        require(balanceOf(msg.sender) == 0, "Already minted");
+
         require(msg.value >= MINT_PRICE, "Please send enough ether");
 
         uint256 tokenId = _tokenIdCounter.current();
