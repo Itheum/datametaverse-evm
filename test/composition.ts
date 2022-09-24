@@ -850,6 +850,32 @@ describe("Composition", async function () {
 
       await expect (identity.connect(bob).proposeAdditionalOwnerRemoval(arbitraryAddress))
         .to.revertedWith("Only additional owners can be proposed for removal");
-    })
+    });
+
+    it("should emit a AdditionalOwnerAdded event", async function () {
+      const { identity, nfme, alice, bob, carol, _ } = await loadFixture(setUpContracts);
+
+      expect(await identity.connect(bob).addAdditionalOwner(carol.address))
+        .to.emit(identity, 'AdditionalOwnerAdded').withArgs(bob.address, carol.address);
+    });
+
+    it("should emit a ProposeAdditionalOwnerRemoval event", async function () {
+      const { identity, nfme, alice, bob, carol, _ } = await loadFixture(setUpContracts);
+
+      await identity.connect(bob).addAdditionalOwner(carol.address);
+
+      expect(await identity.connect(bob).proposeAdditionalOwnerRemoval(carol.address))
+        .to.emit(identity, 'ProposeAdditionalOwnerRemoval').withArgs(bob.address, carol.address);
+    });
+
+    it("should emit a AdditionalOwnerRemoved event", async function () {
+      const { identity, nfme, alice, bob, carol, _ } = await loadFixture(setUpContracts);
+
+      await identity.connect(bob).addAdditionalOwner(carol.address);
+      await identity.connect(bob).proposeAdditionalOwnerRemoval(carol.address);
+
+      expect(await identity.connect(bob).removeAdditionalOwner(carol.address))
+        .to.emit(identity, 'AdditionalOwnerRemoved').withArgs(bob.address, carol.address);
+    });
   });
 });

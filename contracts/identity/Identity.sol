@@ -10,6 +10,10 @@ contract Identity is ERC725(tx.origin), IERC721Receiver {
     event ClaimAdded(string indexed indentifier, address indexed from);
     event ClaimRemoved(string indexed indentifier);
 
+    event AdditionalOwnerAdded(address indexed actor, address indexed added);
+    event ProposeAdditionalOwnerRemoval(address indexed actor, address indexed removalProposed);
+    event AdditionalOwnerRemoved(address indexed actor, address indexed removed);
+
     uint8 public MAX_ADDITIONAL_OWNERS = 9;
     uint8 public additionalOwnersCount = 0;
     mapping(address => bool) public additionalOwners;
@@ -42,6 +46,8 @@ contract Identity is ERC725(tx.origin), IERC721Receiver {
         additionalOwnersCount++;
 
         additionalOwners[_additionalOwner] = true;
+
+        emit AdditionalOwnerAdded(msg.sender, _additionalOwner);
     }
 
     function proposeAdditionalOwnerRemoval(address _additionalOwner) public onlyOwner {
@@ -52,6 +58,8 @@ contract Identity is ERC725(tx.origin), IERC721Receiver {
         removeAdditionalOwnerAcknowledgments[_additionalOwner][msg.sender] = true;
 
         removeAdditionalOwnerConfirmationCount[_additionalOwner]++;
+
+        emit ProposeAdditionalOwnerRemoval(msg.sender, _additionalOwner);
     }
 
     function removeAdditionalOwner(address _additionalOwner) public onlyOwner {
@@ -63,6 +71,8 @@ contract Identity is ERC725(tx.origin), IERC721Receiver {
         additionalOwnersCount--;
 
         delete removeAdditionalOwnerConfirmationCount[_additionalOwner];
+
+        emit AdditionalOwnerRemoved(msg.sender, _additionalOwner);
     }
 
     function onERC721Received(
