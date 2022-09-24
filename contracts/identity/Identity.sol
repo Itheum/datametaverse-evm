@@ -71,6 +71,7 @@ contract Identity is ERC725(tx.origin), IERC721Receiver {
         additionalOwnersCount--;
 
         delete removeAdditionalOwnerConfirmationCount[_additionalOwner];
+        delete removeAdditionalOwnerAcknowledgments[_additionalOwner][msg.sender];
 
         emit AdditionalOwnerRemoved(msg.sender, _additionalOwner);
     }
