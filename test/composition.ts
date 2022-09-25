@@ -843,6 +843,20 @@ describe("Composition", async function () {
         .revertedWith("At least 50% of owners need to confirm the removal");
     });
 
+    it('should fail to add additional owner who is already one (or the owner itself)', async function () {
+      const { identity, alice, bob, carol, _ } = await loadFixture(setUpContracts);
+
+      // Bob adds Alice and Alice adds Carol to the identity of Alice
+      await identity.connect(bob).addAdditionalOwner(alice.address);
+      await expect(identity.connect(alice).addAdditionalOwner(alice.address)).to.revertedWith("Is already (additional) owner");
+
+      expect(await identity.additionalOwnersCount()).to.equal(1);
+
+      await expect(identity.connect(alice).addAdditionalOwner(bob.address)).to.revertedWith("Is already (additional) owner");
+
+      expect(await identity.additionalOwnersCount()).to.equal(1);
+    });
+
     it('should fail to remove an additional owner who is not even one', async function () {
       const { identity, alice, bob } = await loadFixture(setUpContracts);
 

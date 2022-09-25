@@ -42,6 +42,7 @@ contract Identity is ERC725(tx.origin), IERC721Receiver {
 
     function addAdditionalOwner(address _additionalOwner) public onlyOwner {
         require(additionalOwnersCount < MAX_ADDITIONAL_OWNERS, "No more additional owners allowed");
+        require(owner() != _additionalOwner && !additionalOwners[_additionalOwner], "Is already (additional) owner");
 
         additionalOwnersCount++;
 
