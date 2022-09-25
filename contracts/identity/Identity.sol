@@ -18,7 +18,7 @@ contract Identity is ERC725(tx.origin), IERC721Receiver {
     uint8 public additionalOwnersCount = 0;
     mapping(address => bool) public additionalOwners;
     mapping(address => uint8) public removeAdditionalOwnerConfirmationCount;
-    mapping(address => mapping(address => bool)) public removeAdditionalOwnerAcknowledgments;
+    mapping(address => address[]) public removeAdditionalOwnerAcknowledgments;
 
     // claims can not be revoked at the moment and they can be overwritten
     mapping(string => SharedStructs.Claim) public claims;
@@ -52,10 +52,10 @@ contract Identity is ERC725(tx.origin), IERC721Receiver {
 
     function proposeAdditionalOwnerRemoval(address _additionalOwner) public onlyOwner {
         require(additionalOwners[_additionalOwner], "Only additional owners can be proposed for removal");
-        require(!removeAdditionalOwnerAcknowledgments[_additionalOwner][msg.sender],
+        require(!alreadyProposed(_additionalOwner, msg.sender),
             "You can't propose the same additional owner removal twice");
 
-        removeAdditionalOwnerAcknowledgments[_additionalOwner][msg.sender] = true;
+        removeAdditionalOwnerAcknowledgments[_additionalOwner].push(msg.sender);
 
         removeAdditionalOwnerConfirmationCount[_additionalOwner]++;
 
@@ -71,9 +71,18 @@ contract Identity is ERC725(tx.origin), IERC721Receiver {
         additionalOwnersCount--;
 
         delete removeAdditionalOwnerConfirmationCount[_additionalOwner];
-        delete removeAdditionalOwnerAcknowledgments[_additionalOwner][msg.sender];
+        delete removeAdditionalOwnerAcknowledgments[_additionalOwner];
 
         emit AdditionalOwnerRemoved(msg.sender, _additionalOwner);
+    }
+
+    function alreadyProposed(address _additionalOwner, address _sender) public view returns (bool) {
+        for (uint i = 0; i < removeAdditionalOwnerAcknowledgments[_additionalOwner].length; i++) {
+            if (removeAdditionalOwnerAcknowledgments[_additionalOwner][i] == _sender) {
+                return true;
+            }
+        }
+        return false;
     }
 
     function onERC721Received(

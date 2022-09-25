@@ -798,11 +798,11 @@ describe("Composition", async function () {
 
       await identity.connect(bob).addAdditionalOwner(alice.address);
       expect(await identity.connect(bob).removeAdditionalOwnerConfirmationCount(alice.address)).to.equal(0);
-      expect(await identity.connect(bob).removeAdditionalOwnerAcknowledgments(alice.address, bob.address)).to.equal(false);
+      await expect(identity.connect(bob).removeAdditionalOwnerAcknowledgments(alice.address, 0)).to.reverted;
 
       await identity.connect(bob).proposeAdditionalOwnerRemoval(alice.address);
       expect(await identity.connect(bob).removeAdditionalOwnerConfirmationCount(alice.address)).to.equal(1);
-      expect(await identity.connect(bob).removeAdditionalOwnerAcknowledgments(alice.address, bob.address)).to.equal(true);
+      expect(await identity.connect(bob).removeAdditionalOwnerAcknowledgments(alice.address, 0)).to.equal(bob.address);
     });
 
     it('should fail to propose same additional owner removal twice', async function () {
@@ -810,16 +810,16 @@ describe("Composition", async function () {
 
       await identity.connect(bob).addAdditionalOwner(alice.address);
       expect(await identity.connect(bob).removeAdditionalOwnerConfirmationCount(alice.address)).to.equal(0);
-      expect(await identity.connect(bob).removeAdditionalOwnerAcknowledgments(alice.address, bob.address)).to.equal(false);
+      await expect(identity.connect(bob).removeAdditionalOwnerAcknowledgments(alice.address, 0)).to.reverted;
 
       await identity.connect(bob).proposeAdditionalOwnerRemoval(alice.address);
       expect(await identity.connect(bob).removeAdditionalOwnerConfirmationCount(alice.address)).to.equal(1);
-      expect(await identity.connect(bob).removeAdditionalOwnerAcknowledgments(alice.address, bob.address)).to.equal(true);
+      expect(await identity.connect(bob).removeAdditionalOwnerAcknowledgments(alice.address, 0)).to.equal(bob.address);
 
       await expect(identity.proposeAdditionalOwnerRemoval(alice.address)).to
         .revertedWith("You can't propose the same additional owner removal twice");
       expect(await identity.connect(bob).removeAdditionalOwnerConfirmationCount(alice.address)).to.equal(1);
-      expect(await identity.connect(bob).removeAdditionalOwnerAcknowledgments(alice.address, bob.address)).to.equal(true);
+      expect(await identity.connect(bob).removeAdditionalOwnerAcknowledgments(alice.address, 0)).to.equal(bob.address);
     });
 
     it('should fail to remove additional owner if not enough confirmations', async function () {
@@ -850,6 +850,49 @@ describe("Composition", async function () {
 
       await expect (identity.connect(bob).proposeAdditionalOwnerRemoval(arbitraryAddress))
         .to.revertedWith("Only additional owners can be proposed for removal");
+    });
+
+    it('should be allowed to add and remove and again add and remove the same additional owner', async function () {
+      const { identity, alice, bob } = await loadFixture(setUpContracts);
+
+      await identity.connect(bob).addAdditionalOwner(alice.address);
+      await identity.connect(bob).proposeAdditionalOwnerRemoval(alice.address);
+      expect(await identity.connect(bob).removeAdditionalOwnerConfirmationCount(alice.address)).to.equal(1);
+      expect(await identity.connect(bob).removeAdditionalOwnerAcknowledgments(alice.address, 0)).to.equal(bob.address);
+
+      await identity.connect(bob).removeAdditionalOwner(alice.address);
+      expect(await identity.connect(bob).removeAdditionalOwnerConfirmationCount(alice.address)).to.equal(0);
+      await expect(identity.connect(bob).removeAdditionalOwnerAcknowledgments(alice.address, 0)).to.reverted;
+
+      await identity.connect(bob).addAdditionalOwner(alice.address);
+      await identity.connect(bob).proposeAdditionalOwnerRemoval(alice.address);
+      expect(await identity.connect(bob).removeAdditionalOwnerConfirmationCount(alice.address)).to.equal(1);
+      expect(await identity.connect(bob).removeAdditionalOwnerAcknowledgments(alice.address, 0)).to.equal(bob.address);
+
+      await identity.connect(bob).removeAdditionalOwner(alice.address);
+      expect(await identity.connect(bob).removeAdditionalOwnerConfirmationCount(alice.address)).to.equal(0);
+      await expect(identity.connect(bob).removeAdditionalOwnerAcknowledgments(alice.address, 0)).to.reverted;
+    });
+
+    it('should be allowed to add and remove and again add and remove the same additional owner (even when another additional owner removes it)', async function () {
+      const { identity, alice, bob, carol } = await loadFixture(setUpContracts);
+
+      await identity.connect(bob).addAdditionalOwner(alice.address);
+      await identity.connect(bob).addAdditionalOwner(carol.address);
+      await identity.connect(bob).proposeAdditionalOwnerRemoval(alice.address);
+      await identity.connect(carol).proposeAdditionalOwnerRemoval(alice.address);
+      expect(await identity.connect(bob).removeAdditionalOwnerConfirmationCount(alice.address)).to.equal(2);
+      expect(await identity.connect(bob).removeAdditionalOwnerAcknowledgments(alice.address, 0)).to.equal(bob.address);
+      expect(await identity.connect(bob).removeAdditionalOwnerAcknowledgments(alice.address, 1)).to.equal(carol.address);
+
+      await identity.connect(carol).removeAdditionalOwner(alice.address);
+      expect(await identity.connect(bob).removeAdditionalOwnerConfirmationCount(alice.address)).to.equal(0);
+      await expect(identity.connect(bob).removeAdditionalOwnerAcknowledgments(alice.address, 0)).to.reverted;
+
+      await identity.connect(bob).addAdditionalOwner(alice.address);
+      await identity.connect(bob).proposeAdditionalOwnerRemoval(alice.address);
+      expect(await identity.connect(bob).removeAdditionalOwnerConfirmationCount(alice.address)).to.equal(1);
+      expect(await identity.connect(bob).removeAdditionalOwnerAcknowledgments(alice.address, 0)).to.equal(bob.address);
     });
 
     it("should emit a AdditionalOwnerAdded event", async function () {
