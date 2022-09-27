@@ -3,12 +3,13 @@ pragma solidity ^0.8.9;
 
 import "@erc725/smart-contracts/contracts/ERC725.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
+import "./IdentityFactory.sol";
 import "../utils/Common.sol";
 
 contract Identity is ERC725(tx.origin), IERC721Receiver {
 
-    event ClaimAdded(string indexed indentifier, address indexed from);
-    event ClaimRemoved(string indexed indentifier);
+    event ClaimAdded(string indentifier, address indexed from);
+    event ClaimRemoved(string indentifier);
 
     event AdditionalOwnerAdded(address indexed actor, address indexed added);
     event ProposeAdditionalOwnerRemoval(address indexed actor, address indexed removalProposed);
@@ -24,8 +25,18 @@ contract Identity is ERC725(tx.origin), IERC721Receiver {
     mapping(string => SharedStructs.Claim) public claims;
     mapping(address => bool) public ownerOfAnyNftInContract;
 
+    IdentityFactory public identityFactory;
+
+    constructor() {
+        identityFactory = IdentityFactory(msg.sender);
+    }
+
     function _checkOwner() internal view override {
         require(owner() == msg.sender || additionalOwners[msg.sender], "Ownable: caller is not the owner");
+    }
+
+    function isOwner(address toCheck) view public returns (bool) {
+        return owner() == toCheck || additionalOwners[toCheck];
     }
 
     function addClaim(SharedStructs.Claim memory claim) onlyOwner public {
@@ -49,6 +60,8 @@ contract Identity is ERC725(tx.origin), IERC721Receiver {
         additionalOwners[_additionalOwner] = true;
 
         emit AdditionalOwnerAdded(msg.sender, _additionalOwner);
+
+        assert(identityFactory.throwAdditionalOwnerEvent(_additionalOwner, "added"));
     }
 
     function proposeAdditionalOwnerRemoval(address _additionalOwner) public onlyOwner {
@@ -75,6 +88,8 @@ contract Identity is ERC725(tx.origin), IERC721Receiver {
         delete removeAdditionalOwnerAcknowledgments[_additionalOwner];
 
         emit AdditionalOwnerRemoved(msg.sender, _additionalOwner);
+
+        assert(identityFactory.throwAdditionalOwnerEvent(_additionalOwner, "removed"));
     }
 
     function alreadyProposed(address _additionalOwner, address _sender) public view returns (bool) {

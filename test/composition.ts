@@ -8,12 +8,22 @@ describe("Composition", async function () {
     // Signer
     const [ alice, bob, carol, _ ] = await ethers.getSigners();
 
+    // IdentityFactory
+    const IdentityFactory = await ethers.getContractFactory("IdentityFactory");
+    const identityFactory = await IdentityFactory.connect(bob).deploy();
+
+    await identityFactory.deployed();
+
+    const deployViaFactoryTx = await identityFactory.connect(bob).deployIdentity();
+    const deployViaFactoryTxResult = await deployViaFactoryTx.wait();
+
+    const identityContractAddress = deployViaFactoryTxResult.events[1].args[0];
+
     // Identity
     const Identity = await ethers.getContractFactory("Identity");
-    const identity = await Identity.connect(bob).deploy();
+    const identity = await Identity.attach(identityContractAddress);
 
-    await identity.deployed();
-
+    // funding the Identity
     const fundingTx = await bob.sendTransaction({ value: ethers.utils.parseEther("1"), to: identity.address });
     await fundingTx.wait();
 
@@ -23,7 +33,7 @@ describe("Composition", async function () {
 
     await nfme.deployed();
 
-    return { identity, nfme, alice, bob, carol, _ };
+    return { identity, identityFactory, nfme, alice, bob, carol, _ };
   }
 
   describe("NFMe Minting via Identity including Claim", function() {
@@ -698,9 +708,41 @@ describe("Composition", async function () {
 
       expect(await identity.owner()).to.equal(bob.address);
     });
+
+    it('should emit the right additional owner events on adding and removing them', async function () {
+      const { identity, identityFactory, nfme, alice, bob, carol, _ } = await loadFixture(setUpContracts);
+
+      expect(await identity.connect(bob).addAdditionalOwner(carol.address))
+        .to.emit(identityFactory, 'AdditionalOwnerAction').withArgs(identity.address, bob.address, carol.address, "added");
+
+      await identity.connect(bob).proposeAdditionalOwnerRemoval(carol.address);
+
+      expect(await identity.connect(bob).removeAdditionalOwner(carol.address))
+        .to.emit(identityFactory, 'AdditionalOwnerAction').withArgs(identity.address, bob.address, carol.address, "removed");
+    });
+
+    it('should emit the right additional owner events on adding and removing them', async function () {
+      const { identity, identityFactory, nfme, alice, bob, carol, _ } = await loadFixture(setUpContracts);
+
+      await expect(identityFactory.throwAdditionalOwnerEvent(alice.address, "any")).to.reverted;
+    });
   });
 
   describe('Additional Owner', function () {
+    it('should return correct owner state', async function () {
+      const { identity, alice, bob } = await loadFixture(setUpContracts);
+
+      // Bob adds Alice and Alice adds Carol to the identity of Alice
+      await identity.connect(bob).addAdditionalOwner(alice.address);
+
+      expect(await identity.connect(bob).isOwner(bob.address)).to.equal(true);
+      expect(await identity.connect(bob).isOwner(alice.address)).to.equal(true);
+
+      const arbitraryAddress = ethers.Wallet.createRandom().address;
+
+      expect(await identity.connect(bob).isOwner(arbitraryAddress)).to.equal(false);
+    });
+
     it('should be able to call onlyOwner function as additional owner', async function () {
       const { identity, alice, bob } = await loadFixture(setUpContracts);
 
@@ -816,7 +858,7 @@ describe("Composition", async function () {
       expect(await identity.connect(bob).removeAdditionalOwnerConfirmationCount(alice.address)).to.equal(1);
       expect(await identity.connect(bob).removeAdditionalOwnerAcknowledgments(alice.address, 0)).to.equal(bob.address);
 
-      await expect(identity.proposeAdditionalOwnerRemoval(alice.address)).to
+      await expect(identity.connect(bob).proposeAdditionalOwnerRemoval(alice.address)).to
         .revertedWith("You can't propose the same additional owner removal twice");
       expect(await identity.connect(bob).removeAdditionalOwnerConfirmationCount(alice.address)).to.equal(1);
       expect(await identity.connect(bob).removeAdditionalOwnerAcknowledgments(alice.address, 0)).to.equal(bob.address);
