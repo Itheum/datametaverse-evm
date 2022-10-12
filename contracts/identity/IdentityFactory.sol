@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.9;
+pragma solidity 0.8.17;
 
 import "./Identity.sol";
 
 contract IdentityFactory {
 
     event IdentityDeployed(address indexed _contract, address indexed _owner);
-    event AdditionalOwnerAction(address indexed _contract, address indexed originalOwner, address indexed additionalOwner, string action);
+    event OwnerAction(address indexed _contract, address indexed _owner, address indexed _actionBy, string _actionType);
 
     function deployIdentity() public returns (address) {
         Identity _identity = new Identity();
@@ -16,12 +16,12 @@ contract IdentityFactory {
         return address(_identity);
     }
 
-    function throwAdditionalOwnerEvent(address _additionalOwner, string memory action) public returns (bool) {
+    function throwOwnerActionEvent(address _owner, string memory action) public returns (bool) {
         Identity identityContract = Identity(payable(msg.sender));
 
         require(identityContract.isOwner(tx.origin), "Transaction origin is not an owner");
 
-        emit AdditionalOwnerAction(address(identityContract), tx.origin, _additionalOwner, action);
+        emit OwnerAction(address(identityContract), _owner, tx.origin, action);
 
         return true;
     }

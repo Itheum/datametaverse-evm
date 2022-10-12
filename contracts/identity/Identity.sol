@@ -1,100 +1,152 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.9;
+pragma solidity 0.8.17;
 
 import "@erc725/smart-contracts/contracts/ERC725.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
+import "@openzeppelin/contracts/token/ERC1155/IERC1155Receiver.sol";
 import "./IdentityFactory.sol";
 import "../utils/Common.sol";
 
-contract Identity is ERC725(tx.origin), IERC721Receiver {
+contract Identity is ERC725(tx.origin), IERC721Receiver, IERC1155Receiver {
 
-    event ClaimAdded(string indentifier, address indexed from);
-    event ClaimRemoved(string indentifier);
+    event ClaimAction(string indentifier, address indexed actionBy, string actionType);
+    event OwnerAction(address indexed added, address indexed actionBy, string actionType);
 
-    event AdditionalOwnerAdded(address indexed actor, address indexed added);
-    event ProposeAdditionalOwnerRemoval(address indexed actor, address indexed removalProposed);
-    event AdditionalOwnerRemoved(address indexed actor, address indexed removed);
+    uint8 public MAX_OWNERS = 10;
 
-    uint8 public MAX_ADDITIONAL_OWNERS = 9;
-    uint8 public additionalOwnersCount = 0;
-    mapping(address => bool) public additionalOwners;
-    mapping(address => uint8) public removeAdditionalOwnerConfirmationCount;
-    mapping(address => address[]) public removeAdditionalOwnerAcknowledgments;
+    string[] public claimIdentifier;
+    address[] public owners;
+    mapping(address => uint8) public removeOwnerConfirmationCount;
+    mapping(address => address[]) public removeOwnerAcknowledgments;
 
     // claims can not be revoked at the moment and they can be overwritten
     mapping(string => SharedStructs.Claim) public claims;
-    mapping(address => bool) public ownerOfAnyNftInContract;
+
+    mapping(address => bool) public ownerOfErc721;
+    mapping(address => bool) public ownerOfErc1155;
 
     IdentityFactory public identityFactory;
 
     constructor() {
         identityFactory = IdentityFactory(msg.sender);
+        owners.push(tx.origin);
     }
 
     function _checkOwner() internal view override {
-        require(owner() == msg.sender || additionalOwners[msg.sender], "Ownable: caller is not the owner");
+        bool isOwner = false;
+
+        for (uint i = 0; i < owners.length; i++) {
+            if (owners[i] == msg.sender) {
+                isOwner = true;
+                break;
+            }
+        }
+        require(isOwner, "Ownable: caller is not the owner");
     }
 
     function isOwner(address toCheck) view public returns (bool) {
-        return owner() == toCheck || additionalOwners[toCheck];
+        for (uint i = 0; i < owners.length; i++) {
+            if (owners[i] == toCheck) {
+                return true;
+            }
+        }
+        return false;
     }
 
     function addClaim(SharedStructs.Claim memory claim) onlyOwner public {
         claims[claim.identifier] = claim;
 
-        emit ClaimAdded(claim.identifier, claim.from);
+        claimIdentifier.push(claim.identifier);
+
+        emit ClaimAction(claim.identifier, msg.sender, "added");
     }
 
     function removeClaim(string memory identifier) onlyOwner public {
+        uint16 index;
+        bool found;
+
+        for (uint16 i = 0; i < claimIdentifier.length; i++) {
+            if (keccak256(abi.encodePacked((claimIdentifier[i]))) == keccak256(abi.encodePacked((identifier)))) {
+                index = i;
+                found = true;
+                break;
+            }
+        }
+
+        assert(found);
+
+        claimIdentifier[index] = claimIdentifier[claimIdentifier.length - 1];
+        claimIdentifier.pop();
+
         delete claims[identifier];
 
-        emit ClaimRemoved(identifier);
+        emit ClaimAction(identifier, msg.sender, "removed");
     }
 
-    function addAdditionalOwner(address _additionalOwner) public onlyOwner {
-        require(additionalOwnersCount < MAX_ADDITIONAL_OWNERS, "No more additional owners allowed");
-        require(owner() != _additionalOwner && !additionalOwners[_additionalOwner], "Is already (additional) owner");
-
-        additionalOwnersCount++;
-
-        additionalOwners[_additionalOwner] = true;
-
-        emit AdditionalOwnerAdded(msg.sender, _additionalOwner);
-
-        assert(identityFactory.throwAdditionalOwnerEvent(_additionalOwner, "added"));
+    function getClaimIdentifier() public view returns (string[] memory) {
+        return claimIdentifier;
     }
 
-    function proposeAdditionalOwnerRemoval(address _additionalOwner) public onlyOwner {
-        require(additionalOwners[_additionalOwner], "Only additional owners can be proposed for removal");
-        require(!alreadyProposed(_additionalOwner, msg.sender),
-            "You can't propose the same additional owner removal twice");
+    function addOwner(address _owner) public onlyOwner {
+        require(owners.length < MAX_OWNERS, "No more owners allowed");
+        require(!isOwner(_owner), "Is already owner");
 
-        removeAdditionalOwnerAcknowledgments[_additionalOwner].push(msg.sender);
+        owners.push(_owner);
 
-        removeAdditionalOwnerConfirmationCount[_additionalOwner]++;
+        emit OwnerAction(_owner, msg.sender, "added");
 
-        emit ProposeAdditionalOwnerRemoval(msg.sender, _additionalOwner);
+        assert(identityFactory.throwOwnerActionEvent(_owner, "added"));
     }
 
-    function removeAdditionalOwner(address _additionalOwner) public onlyOwner {
-        require(removeAdditionalOwnerConfirmationCount[_additionalOwner] > additionalOwnersCount/2,
+    function proposeOwnerRemoval(address _owner) public onlyOwner {
+        require(isOwner(_owner), "Only owners can be proposed for removal");
+        require(!alreadyProposed(_owner, msg.sender),
+            "You can't propose the same owner removal twice");
+
+        removeOwnerAcknowledgments[_owner].push(msg.sender);
+
+        removeOwnerConfirmationCount[_owner]++;
+
+        emit OwnerAction(_owner, msg.sender, "removeProposal");
+    }
+
+    function removeOwner(address _owner) public onlyOwner {
+        uint8 compensateOddness = uint8(owners.length % 2);
+
+        require(removeOwnerConfirmationCount[_owner] >= uint8(owners.length / 2 + compensateOddness),
             "At least 50% of owners need to confirm the removal");
 
-        additionalOwners[_additionalOwner] = false;
+        uint8 index;
+        bool found;
 
-        additionalOwnersCount--;
+        for (uint8 i = 0; i < owners.length; i++) {
+            if (owners[i] == _owner) {
+                index = i;
+                found = true;
+                break;
+            }
+        }
 
-        delete removeAdditionalOwnerConfirmationCount[_additionalOwner];
-        delete removeAdditionalOwnerAcknowledgments[_additionalOwner];
+        assert(found);
 
-        emit AdditionalOwnerRemoved(msg.sender, _additionalOwner);
+        owners[index] = owners[owners.length - 1];
+        owners.pop();
 
-        assert(identityFactory.throwAdditionalOwnerEvent(_additionalOwner, "removed"));
+        delete removeOwnerConfirmationCount[_owner];
+        delete removeOwnerAcknowledgments[_owner];
+
+        emit OwnerAction(_owner, msg.sender, "removed");
+
+        assert(identityFactory.throwOwnerActionEvent(_owner, "removed"));
     }
 
-    function alreadyProposed(address _additionalOwner, address _sender) public view returns (bool) {
-        for (uint i = 0; i < removeAdditionalOwnerAcknowledgments[_additionalOwner].length; i++) {
-            if (removeAdditionalOwnerAcknowledgments[_additionalOwner][i] == _sender) {
+    function getOwners() public view returns (address[] memory) {
+        return owners;
+    }
+
+    function alreadyProposed(address _owner, address _sender) public view returns (bool) {
+        for (uint i = 0; i < removeOwnerAcknowledgments[_owner].length; i++) {
+            if (removeOwnerAcknowledgments[_owner][i] == _sender) {
                 return true;
             }
         }
@@ -107,9 +159,33 @@ contract Identity is ERC725(tx.origin), IERC721Receiver {
         uint256 tokenId,
         bytes calldata data
     ) external override returns (bytes4) {
-        ownerOfAnyNftInContract[operator] = true;
+        ownerOfErc721[operator] = true;
 
         return IERC721Receiver.onERC721Received.selector;
+    }
+
+    function onERC1155Received(
+        address operator,
+        address from,
+        uint256 id,
+        uint256 value,
+        bytes calldata data
+    ) external override returns (bytes4) {
+        ownerOfErc1155[operator] = true;
+
+        return IERC1155Receiver.onERC1155Received.selector;
+    }
+
+    function onERC1155BatchReceived(
+        address operator,
+        address from,
+        uint256[] calldata ids,
+        uint256[] calldata values,
+        bytes calldata data
+    ) external override returns (bytes4) {
+        ownerOfErc1155[operator] = true;
+
+        return IERC1155Receiver.onERC1155BatchReceived.selector;
     }
 
     receive() external payable {}
