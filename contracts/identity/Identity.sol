@@ -33,15 +33,7 @@ contract Identity is ERC725(tx.origin), IERC721Receiver, IERC1155Receiver {
     }
 
     function _checkOwner() internal view override {
-        bool isOwner = false;
-
-        for (uint i = 0; i < owners.length; i++) {
-            if (owners[i] == msg.sender) {
-                isOwner = true;
-                break;
-            }
-        }
-        require(isOwner, "Ownable: caller is not the owner");
+        require(isOwner(msg.sender), "Ownable: caller is not the owner");
     }
 
     function isOwner(address toCheck) view public returns (bool) {
@@ -65,9 +57,8 @@ contract Identity is ERC725(tx.origin), IERC721Receiver, IERC1155Receiver {
         uint16 index;
         bool found;
 
-        for (uint16 i = 0; i < claimIdentifier.length; i++) {
-            if (keccak256(abi.encodePacked((claimIdentifier[i]))) == keccak256(abi.encodePacked((identifier)))) {
-                index = i;
+        for (; index < claimIdentifier.length; index++) {
+            if (keccak256(abi.encodePacked((claimIdentifier[index]))) == keccak256(abi.encodePacked((identifier)))) {
                 found = true;
                 break;
             }
@@ -119,9 +110,8 @@ contract Identity is ERC725(tx.origin), IERC721Receiver, IERC1155Receiver {
         uint8 index;
         bool found;
 
-        for (uint8 i = 0; i < owners.length; i++) {
-            if (owners[i] == _owner) {
-                index = i;
+        for (; index < owners.length; index++) {
+            if (owners[index] == _owner) {
                 found = true;
                 break;
             }
@@ -145,7 +135,7 @@ contract Identity is ERC725(tx.origin), IERC721Receiver, IERC1155Receiver {
     }
 
     function alreadyProposed(address _owner, address _sender) public view returns (bool) {
-        for (uint i = 0; i < removeOwnerAcknowledgments[_owner].length; i++) {
+        for (uint8 i = 0; i < removeOwnerAcknowledgments[_owner].length; i++) {
             if (removeOwnerAcknowledgments[_owner][i] == _sender) {
                 return true;
             }
