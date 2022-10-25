@@ -48,7 +48,18 @@ contract Identity is ERC725(tx.origin), IERC721Receiver, IERC1155Receiver {
     function addClaim(SharedStructs.Claim memory claim) onlyOwner public {
         claims[claim.identifier] = claim;
 
-        claimIdentifier.push(claim.identifier);
+        bool found;
+
+        for (uint index; index < claimIdentifier.length; index++) {
+            if (keccak256(abi.encodePacked((claimIdentifier[index]))) == keccak256(abi.encodePacked((claim.identifier)))) {
+                found = true;
+                break;
+            }
+        }
+
+        if (!found) {
+            claimIdentifier.push(claim.identifier);
+        }
 
         emit ClaimAction(claim.identifier, msg.sender, "added");
     }
