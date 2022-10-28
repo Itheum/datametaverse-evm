@@ -10,40 +10,14 @@ import "../utils/Common.sol";
 contract Identity is ERC725(tx.origin), IERC721Receiver, IERC1155Receiver {
 
     event ClaimAction(string indentifier, address indexed actionBy, string actionType);
-    event OwnerAction(address indexed added, address indexed actionBy, string actionType);
-
-    uint8 public MAX_OWNERS = 10;
 
     string[] public claimIdentifier;
-    address[] public owners;
-    mapping(address => uint8) public removeOwnerConfirmationCount;
-    mapping(address => address[]) public removeOwnerAcknowledgments;
 
     // claims can not be revoked at the moment and they can be overwritten
     mapping(string => SharedStructs.Claim) public claims;
 
     mapping(address => bool) public ownerOfErc721;
     mapping(address => bool) public ownerOfErc1155;
-
-    IdentityFactory public identityFactory;
-
-    constructor() {
-        identityFactory = IdentityFactory(msg.sender);
-        owners.push(tx.origin);
-    }
-
-    function _checkOwner() internal view override {
-        require(isOwner(msg.sender), "Ownable: caller is not the owner");
-    }
-
-    function isOwner(address toCheck) view public returns (bool) {
-        for (uint i = 0; i < owners.length; i++) {
-            if (owners[i] == toCheck) {
-                return true;
-            }
-        }
-        return false;
-    }
 
     function addClaim(SharedStructs.Claim memory claim) onlyOwner public {
         claims[claim.identifier] = claim;
@@ -87,71 +61,6 @@ contract Identity is ERC725(tx.origin), IERC721Receiver, IERC1155Receiver {
 
     function getClaimIdentifier() public view returns (string[] memory) {
         return claimIdentifier;
-    }
-
-    function addOwner(address _owner) public onlyOwner {
-        require(owners.length < MAX_OWNERS, "No more owners allowed");
-        require(!isOwner(_owner), "Is already owner");
-
-        owners.push(_owner);
-
-        emit OwnerAction(_owner, msg.sender, "added");
-
-        assert(identityFactory.throwOwnerActionEvent(_owner, "added"));
-    }
-
-    function proposeOwnerRemoval(address _owner) public onlyOwner {
-        require(isOwner(_owner), "Only owners can be proposed for removal");
-        require(!alreadyProposed(_owner, msg.sender),
-            "You can't propose the same owner removal twice");
-
-        removeOwnerAcknowledgments[_owner].push(msg.sender);
-
-        removeOwnerConfirmationCount[_owner]++;
-
-        emit OwnerAction(_owner, msg.sender, "removeProposal");
-    }
-
-    function removeOwner(address _owner) public onlyOwner {
-        uint8 compensateOddness = uint8(owners.length % 2);
-
-        require(removeOwnerConfirmationCount[_owner] >= uint8(owners.length / 2 + compensateOddness),
-            "At least 50% of owners need to confirm the removal");
-
-        uint8 index;
-        bool found;
-
-        for (; index < owners.length; index++) {
-            if (owners[index] == _owner) {
-                found = true;
-                break;
-            }
-        }
-
-        assert(found);
-
-        owners[index] = owners[owners.length - 1];
-        owners.pop();
-
-        delete removeOwnerConfirmationCount[_owner];
-        delete removeOwnerAcknowledgments[_owner];
-
-        emit OwnerAction(_owner, msg.sender, "removed");
-
-        assert(identityFactory.throwOwnerActionEvent(_owner, "removed"));
-    }
-
-    function getOwners() public view returns (address[] memory) {
-        return owners;
-    }
-
-    function alreadyProposed(address _owner, address _sender) public view returns (bool) {
-        for (uint8 i = 0; i < removeOwnerAcknowledgments[_owner].length; i++) {
-            if (removeOwnerAcknowledgments[_owner][i] == _sender) {
-                return true;
-            }
-        }
-        return false;
     }
 
     function onERC721Received(

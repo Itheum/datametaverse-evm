@@ -132,36 +132,6 @@ describe("Composition", async function () {
       expect(await nfme.balanceOf(identity.address)).to.equal(Number(0));
     });
 
-    it("should be able to add another owner and also mint from it", async function () {
-      const { identity, nfme, alice, bob, carol, _ } = await loadFixture(setUpContracts);
-
-      // Identity (Bob is owner) has to create the claim and send it over to 'from'
-      const claimData = {
-        identifier: "nfme_mint_allowed",
-        from: alice.address,
-        to: identity.address,
-        data: ethers.utils.formatBytes32String(""),
-        validFrom: 0,
-        validTo: 0,
-      };
-
-      const claimDataHash = ethers.utils.solidityKeccak256(["string", "address", "address", "bytes", "uint64", "uint64"], [claimData.identifier, claimData.from, claimData.to, claimData.data, claimData.validFrom, claimData.validTo]);
-
-      // Alice (owner of ClaimVerifier) has to sign and return the claim
-      const signedClaimDataHash = await alice.signMessage(ethers.utils.arrayify(claimDataHash));
-
-      await identity.connect(bob).addClaim({ ...claimData, signature: signedClaimDataHash });
-      await identity.connect(bob).addOwner(carol.address);
-
-      // mint via ERC725X
-      const mintFunctionSignatureHash = ethers.utils.keccak256(ethers.utils.toUtf8Bytes("safeMint()")).substring(0, 10);
-      await identity.connect(carol).execute(0, nfme.address, ethers.utils.parseEther("0.1"), mintFunctionSignatureHash);
-
-      expect(await nfme.balanceOf(identity.address)).to.equal(Number(1));
-
-      expect(await nfme.ownerOf(0)).to.equal(identity.address);
-    });
-
     it("should fail transferring the NFT after minting it when it's not address zero (transferFrom & safeTransferFrom)", async function () {
       const { identity, nfme, alice, bob, carol, _ } = await loadFixture(setUpContracts);
 
@@ -275,7 +245,6 @@ describe("Composition", async function () {
       const signedClaimDataHash = await carol.signMessage(ethers.utils.arrayify(claimDataHash));
 
       await identity.connect(bob).addClaim({ ...claimData, signature: signedClaimDataHash });
-      await identity.connect(bob).addOwner(carol.address);
 
       // mint via ERC725X
       const mintFunctionSignatureHash = ethers.utils.keccak256(ethers.utils.toUtf8Bytes("safeMint()")).substring(0, 10);
@@ -302,7 +271,6 @@ describe("Composition", async function () {
       const signedClaimDataHash = await alice.signMessage(ethers.utils.arrayify(claimDataHash));
 
       await identity.connect(bob).addClaim({ ...claimData, signature: signedClaimDataHash });
-      await identity.connect(bob).addOwner(carol.address);
 
       // mint via ERC725X
       const mintFunctionSignatureHash = ethers.utils.keccak256(ethers.utils.toUtf8Bytes("safeMint()")).substring(0, 10);
@@ -329,7 +297,6 @@ describe("Composition", async function () {
       const signedClaimDataHash = await bob.signMessage(ethers.utils.arrayify(claimDataHash));
 
       await identity.connect(bob).addClaim({ ...claimData, signature: signedClaimDataHash });
-      await identity.connect(bob).addOwner(carol.address);
 
       // mint via ERC725X
       const mintFunctionSignatureHash = ethers.utils.keccak256(ethers.utils.toUtf8Bytes("safeMint()")).substring(0, 10);
@@ -358,7 +325,6 @@ describe("Composition", async function () {
       const signedClaimDataHash = await alice.signMessage(ethers.utils.arrayify(claimDataHash));
 
       await identity.connect(bob).addClaim({ ...claimData, signature: signedClaimDataHash });
-      await identity.connect(bob).addOwner(carol.address);
 
       // mint via ERC725X
       const mintFunctionSignatureHash = ethers.utils.keccak256(ethers.utils.toUtf8Bytes("safeMint()")).substring(0, 10);
@@ -470,7 +436,7 @@ describe("Composition", async function () {
         .to.revertedWith("Claim signature not valid");
     });
 
-    it("should fail when trying to mint when sending to less ether", async function () {
+    it("should fail when trying to mint when sending too less ether", async function () {
       const { identity, nfme, bob } = await loadFixture(setUpContracts);
 
       const mintFunctionSignatureHash = ethers.utils.keccak256(ethers.utils.toUtf8Bytes("safeMint()")).substring(0, 10);
@@ -716,46 +682,11 @@ describe("Composition", async function () {
 
       expect(await identity.owner()).to.equal(bob.address);
     });
-
-    it('should emit the right owner action events on adding and removing them', async function () {
-      const { identity, identityFactory, nfme, alice, bob, carol, _ } = await loadFixture(setUpContracts);
-
-      expect(await identity.connect(bob).addOwner(carol.address))
-        .to.emit(identityFactory, 'OwnerAction').withArgs(identity.address, carol.address, bob.address, "added");
-
-      await identity.connect(bob).proposeOwnerRemoval(carol.address);
-
-      expect(await identity.connect(bob).removeOwner(carol.address))
-        .to.emit(identityFactory, 'OwnerAction').withArgs(identity.address, carol.address, bob.address, "removed");
-    });
-
-    it('should not emit owner action event', async function () {
-      const { identity, identityFactory, nfme, alice, bob, carol, _ } = await loadFixture(setUpContracts);
-
-      await expect(identityFactory.throwOwnerActionEvent(alice.address, "any")).to.reverted;
-    });
   });
 
   describe('Owner', function () {
-    it('should return correct owner state', async function () {
-      const { identity, alice, bob } = await loadFixture(setUpContracts);
-
-      // Bob adds Alice and Alice adds Carol to the identity of Alice
-      await identity.connect(bob).addOwner(alice.address);
-
-      expect(await identity.connect(bob).isOwner(bob.address)).to.equal(true);
-      expect(await identity.connect(bob).isOwner(alice.address)).to.equal(true);
-
-      const arbitraryAddress = ethers.Wallet.createRandom().address;
-
-      expect(await identity.connect(bob).isOwner(arbitraryAddress)).to.equal(false);
-    });
-
     it('should be able to call onlyOwner function as owner', async function () {
       const { identity, alice, bob } = await loadFixture(setUpContracts);
-
-      // Bob adds Alice and Alice adds Carol to the identity of Alice
-      await identity.connect(bob).addOwner(alice.address);
 
       const claimData = {
         identifier: "dummy_identifier",
@@ -766,7 +697,7 @@ describe("Composition", async function () {
         validTo: 0,
       };
 
-      await identity.connect(alice).addClaim({ ...claimData, signature: ethers.utils.formatBytes32String("") });
+      await identity.connect(bob).addClaim({ ...claimData, signature: ethers.utils.formatBytes32String("") });
 
       expect((await identity.connect(bob).claims(claimData.identifier)).identifier).to.equal(claimData.identifier);
     });
@@ -785,213 +716,6 @@ describe("Composition", async function () {
 
       await expect(identity.connect(alice).addClaim({ ...claimData, signature: ethers.utils.formatBytes32String("") }))
         .to.revertedWith("Ownable: caller is not the owner");
-    });
-
-    it('should be able to add owners', async function () {
-      const { identity, alice, bob, carol, _ } = await loadFixture(setUpContracts);
-
-      expect(await identity.isOwner(alice.address)).to.equal(false);
-      expect(await identity.isOwner(carol.address)).to.equal(false);
-
-      // Bob adds Alice and Alice adds Carol to the identity of Alice
-      await identity.connect(bob).addOwner(alice.address);
-      await identity.connect(alice).addOwner(carol.address);
-
-      expect(await identity.isOwner(alice.address)).to.equal(true);
-      expect(await identity.isOwner(carol.address)).to.equal(true);
-
-      expect(JSON.stringify(await identity.getOwners()))
-        .to.equal(JSON.stringify([bob.address, alice.address, carol.address]));
-    });
-
-    it('should fail to add owner when there are already enough', async function () {
-      const { identity, alice, bob, carol, _ } = await loadFixture(setUpContracts);
-
-      for (let i = 0; i < 9; i++) {
-        const arbitraryAddress = ethers.Wallet.createRandom().address;
-
-        await identity.connect(bob).addOwner(arbitraryAddress);
-
-        expect(await identity.connect(bob).isOwner(arbitraryAddress)).to.equal(true);
-      }
-
-      await expect(identity.connect(bob).addOwner(alice.address))
-        .to.revertedWith("No more owners allowed");
-    });
-
-    it('should be able to remove owner only on enough confirmations', async function () {
-      const { identity, alice, bob, carol, _ } = await loadFixture(setUpContracts);
-
-      expect(await identity.isOwner(alice.address)).to.equal(false);
-      expect(await identity.isOwner(carol.address)).to.equal(false);
-
-      // Bob adds Alice and Alice adds Carol to the identity of Alice
-      await identity.connect(bob).addOwner(alice.address);
-      await identity.connect(alice).addOwner(carol.address);
-
-      expect(await identity.isOwner(alice.address)).to.equal(true);
-      expect(await identity.isOwner(carol.address)).to.equal(true);
-
-      expect(JSON.stringify(await identity.getOwners()))
-        .to.equal(JSON.stringify([bob.address, alice.address, carol.address]));
-
-      // propose Carol for removal
-      await identity.connect(alice).proposeOwnerRemoval(carol.address);
-
-      // propose Carol for removal a second time
-      await identity.connect(bob).proposeOwnerRemoval(carol.address);
-
-      await identity.connect(bob).removeOwner(carol.address);
-
-      expect(await identity.isOwner(alice.address)).to.equal(true);
-      expect(await identity.isOwner(carol.address)).to.equal(false);
-
-      expect(JSON.stringify(await identity.getOwners()))
-        .to.equal(JSON.stringify([bob.address, alice.address]));
-    });
-
-    it('should be able to propose owner removals', async function () {
-      const { identity, alice, bob } = await loadFixture(setUpContracts);
-
-      await identity.connect(bob).addOwner(alice.address);
-      expect(await identity.connect(bob).removeOwnerConfirmationCount(alice.address)).to.equal(0);
-      await expect(identity.connect(bob).removeOwnerAcknowledgments(alice.address, 0)).to.reverted;
-
-      await identity.connect(bob).proposeOwnerRemoval(alice.address);
-      expect(await identity.connect(bob).removeOwnerConfirmationCount(alice.address)).to.equal(1);
-      expect(await identity.connect(bob).removeOwnerAcknowledgments(alice.address, 0)).to.equal(bob.address);
-    });
-
-    it('should fail to propose same owner removal twice', async function () {
-      const { identity, alice, bob } = await loadFixture(setUpContracts);
-
-      await identity.connect(bob).addOwner(alice.address);
-      expect(await identity.connect(bob).removeOwnerConfirmationCount(alice.address)).to.equal(0);
-      await expect(identity.connect(bob).removeOwnerAcknowledgments(alice.address, 0)).to.reverted;
-
-      await identity.connect(bob).proposeOwnerRemoval(alice.address);
-      expect(await identity.connect(bob).removeOwnerConfirmationCount(alice.address)).to.equal(1);
-      expect(await identity.connect(bob).removeOwnerAcknowledgments(alice.address, 0)).to.equal(bob.address);
-
-      await expect(identity.connect(bob).proposeOwnerRemoval(alice.address)).to
-        .revertedWith("You can't propose the same owner removal twice");
-      expect(await identity.connect(bob).removeOwnerConfirmationCount(alice.address)).to.equal(1);
-      expect(await identity.connect(bob).removeOwnerAcknowledgments(alice.address, 0)).to.equal(bob.address);
-    });
-
-    it('should fail to remove owner if not enough confirmations', async function () {
-      const { identity, alice, bob, carol, _ } = await loadFixture(setUpContracts);
-
-      // Bob adds Alice and Alice adds Carol to the identity of Alice
-      await identity.connect(bob).addOwner(alice.address);
-      await identity.connect(alice).addOwner(carol.address);
-
-      expect(await identity.isOwner(bob.address)).to.equal(true);
-      expect(await identity.isOwner(alice.address)).to.equal(true);
-      expect(await identity.isOwner(carol.address)).to.equal(true);
-
-      // removing Carol should fail
-      await expect(identity.removeOwner(carol.address)).to
-        .revertedWith("At least 50% of owners need to confirm the removal");
-
-      // propose Carol for removal
-      await identity.connect(alice).proposeOwnerRemoval(carol.address);
-
-      // removing Carol should still fail
-      await expect(identity.removeOwner(carol.address)).to
-        .revertedWith("At least 50% of owners need to confirm the removal");
-    });
-
-    it('should fail to add owner who is already one (or the owner itself)', async function () {
-      const { identity, alice, bob, carol, _ } = await loadFixture(setUpContracts);
-
-      // Bob adds Alice and Alice adds Carol to the identity of Alice
-      await identity.connect(bob).addOwner(alice.address);
-      await expect(identity.connect(alice).addOwner(alice.address)).to.revertedWith("Is already owner");
-
-      expect(await identity.isOwner(alice.address)).to.equal(true);
-
-      await expect(identity.connect(alice).addOwner(bob.address)).to.revertedWith("Is already owner");
-
-      expect(await identity.isOwner(alice.address)).to.equal(true);
-    });
-
-    it('should fail to remove an owner who is not even one', async function () {
-      const { identity, alice, bob } = await loadFixture(setUpContracts);
-
-      const arbitraryAddress = ethers.Wallet.createRandom().address;
-
-      await expect (identity.connect(bob).proposeOwnerRemoval(arbitraryAddress))
-        .to.revertedWith("Only owners can be proposed for removal");
-    });
-
-    it('should be allowed to add and remove and again add and remove the same owner', async function () {
-      const { identity, alice, bob } = await loadFixture(setUpContracts);
-
-      await identity.connect(bob).addOwner(alice.address);
-      await identity.connect(bob).proposeOwnerRemoval(alice.address);
-      expect(await identity.connect(bob).removeOwnerConfirmationCount(alice.address)).to.equal(1);
-      expect(await identity.connect(bob).removeOwnerAcknowledgments(alice.address, 0)).to.equal(bob.address);
-
-      await identity.connect(bob).removeOwner(alice.address);
-      expect(await identity.connect(bob).removeOwnerConfirmationCount(alice.address)).to.equal(0);
-      await expect(identity.connect(bob).removeOwnerAcknowledgments(alice.address, 0)).to.reverted;
-
-      await identity.connect(bob).addOwner(alice.address);
-      await identity.connect(bob).proposeOwnerRemoval(alice.address);
-      expect(await identity.connect(bob).removeOwnerConfirmationCount(alice.address)).to.equal(1);
-      expect(await identity.connect(bob).removeOwnerAcknowledgments(alice.address, 0)).to.equal(bob.address);
-
-      await identity.connect(bob).removeOwner(alice.address);
-      expect(await identity.connect(bob).removeOwnerConfirmationCount(alice.address)).to.equal(0);
-      await expect(identity.connect(bob).removeOwnerAcknowledgments(alice.address, 0)).to.reverted;
-    });
-
-    it('should be allowed to add and remove and again add and remove the same owner (even when another owner removes it)', async function () {
-      const { identity, alice, bob, carol } = await loadFixture(setUpContracts);
-
-      await identity.connect(bob).addOwner(alice.address);
-      await identity.connect(bob).addOwner(carol.address);
-      await identity.connect(bob).proposeOwnerRemoval(alice.address);
-      await identity.connect(carol).proposeOwnerRemoval(alice.address);
-      expect(await identity.connect(bob).removeOwnerConfirmationCount(alice.address)).to.equal(2);
-      expect(await identity.connect(bob).removeOwnerAcknowledgments(alice.address, 0)).to.equal(bob.address);
-      expect(await identity.connect(bob).removeOwnerAcknowledgments(alice.address, 1)).to.equal(carol.address);
-
-      await identity.connect(carol).removeOwner(alice.address);
-      expect(await identity.connect(bob).removeOwnerConfirmationCount(alice.address)).to.equal(0);
-      await expect(identity.connect(bob).removeOwnerAcknowledgments(alice.address, 0)).to.reverted;
-
-      await identity.connect(bob).addOwner(alice.address);
-      await identity.connect(bob).proposeOwnerRemoval(alice.address);
-      expect(await identity.connect(bob).removeOwnerConfirmationCount(alice.address)).to.equal(1);
-      expect(await identity.connect(bob).removeOwnerAcknowledgments(alice.address, 0)).to.equal(bob.address);
-    });
-
-    it("should emit a OwnerAction (added) event", async function () {
-      const { identity, nfme, alice, bob, carol, _ } = await loadFixture(setUpContracts);
-
-      expect(await identity.connect(bob).addOwner(carol.address))
-        .to.emit(identity, 'OwnerAction').withArgs(carol.address, bob.address, "added");
-    });
-
-    it("should emit a OwnerAction (removeProposal) event", async function () {
-      const { identity, nfme, alice, bob, carol, _ } = await loadFixture(setUpContracts);
-
-      await identity.connect(bob).addOwner(carol.address);
-
-      expect(await identity.connect(bob).proposeOwnerRemoval(carol.address))
-        .to.emit(identity, 'OwnerAction').withArgs(carol.address, bob.address, "removeProposal");
-    });
-
-    it("should emit a OwnerAction (removed) event", async function () {
-      const { identity, nfme, alice, bob, carol, _ } = await loadFixture(setUpContracts);
-
-      await identity.connect(bob).addOwner(carol.address);
-      await identity.connect(bob).proposeOwnerRemoval(carol.address);
-
-      expect(await identity.connect(bob).removeOwner(carol.address))
-        .to.emit(identity, 'OwnerAction').withArgs(carol.address, bob.address, "removed");
     });
   });
 });
