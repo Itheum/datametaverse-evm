@@ -7,7 +7,7 @@ import "@openzeppelin/contracts/token/ERC1155/IERC1155Receiver.sol";
 import "./IdentityFactory.sol";
 import "../utils/Common.sol";
 
-contract Identity is ERC725(tx.origin), IERC721Receiver, IERC1155Receiver {
+contract Identity is ERC725, IERC721Receiver, IERC1155Receiver {
 
     event ClaimAction(string indentifier, address indexed actionBy, string actionType);
 
@@ -18,6 +18,8 @@ contract Identity is ERC725(tx.origin), IERC721Receiver, IERC1155Receiver {
 
     mapping(address => bool) public ownerOfErc721;
     mapping(address => bool) public ownerOfErc1155;
+
+    constructor(address newOwner) ERC725(newOwner) {}
 
     function addClaim(SharedStructs.Claim memory claim) onlyOwner public {
         claims[claim.identifier] = claim;

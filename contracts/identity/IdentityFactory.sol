@@ -8,9 +8,9 @@ contract IdentityFactory {
     event IdentityDeployed(address indexed _contract, address indexed _owner);
 
     function deployIdentity() public returns (address) {
-        Identity _identity = new Identity();
+        Identity _identity = new Identity(msg.sender);
 
-        emit IdentityDeployed(address(_identity), tx.origin);
+        emit IdentityDeployed(address(_identity), msg.sender);
 
         return address(_identity);
     }
